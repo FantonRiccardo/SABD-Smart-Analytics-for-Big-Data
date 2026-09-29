@@ -1,0 +1,192 @@
+---
+title: "Data Management with dplyr"
+subtitle: "The Starwars Body Mass Index (BMI) Exercise"
+author: "Riccardo Fanton"
+date: "`r Sys.Date()`"
+fontsize: 11pt
+output:  
+  html_document:
+    css: starwars.css
+    includes:
+      in_header: hero-image.html
+    number_sections: true
+    toc: true
+    toc_float: true
+    theme: cosmo
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+## Global knitr options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5
+)
+knitr::opts_knit$set(width = 75)
+options(max.print = "75")
+```
+
+# Project Brief & Objectives
+
+The goal of this exercise is to analyze the **Body Mass Index (BMI)** of characters in the *Star Wars* universe using modern `tidyverse` / `dplyr` pipelines.
+
+BMI is defined as:
+$$BMI = \frac{\text{Mass}}{(\text{Height} / 100)^2}$$
+where $\text{Mass}$ is in kilograms ($\text{kg}$) and $\text{Height}$ is recorded in centimeters ($\text{cm}$) in the dataset.
+
+### Core Deliverable
+Create a clean summary table that displays **only the names, homelands (homeworld), species, and BMIs** of those characters whose BMI exceeds the **average BMI on Tatooine**, with the characters grouped by homeland and listed in **descending order of BMI**.
+
+---
+
+# Data Management
+
+## RMarkdown Preparation & Libraries
+
+```{r libraries}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(skimr)
+```
+
+## Data Loading
+
+We load the native `starwars` dataset bundled with `dplyr`:
+
+```{r load-starwars}
+starwars <- dplyr::starwars
+cat("Initial dataset dimensions:", nrow(starwars), "characters and", ncol(starwars), "attributes.\n")
+```
+
+## Data Quality Check
+
+We inspect the completeness of key variables (`height`, `mass`, `homeworld`):
+
+```{r quality-check}
+# Check missing value counts in key fields
+na_summary <- starwars %>%
+  summarise(
+    total_characters = n(),
+    missing_height = sum(is.na(height)),
+    missing_mass = sum(is.na(mass)),
+    missing_homeworld = sum(is.na(homeworld))
+  )
+
+kable(na_summary, caption = "Missing Values Assessment")
+```
+
+## Data Cleaning
+
+We filter out records with missing values (`NA`) in `height` or `mass` so that BMI can be rigorously computed:
+
+```{r cleaning}
+starwars_clean <- starwars %>%
+  filter(!is.na(height) & !is.na(mass)) %>%
+  filter(!is.na(homeworld))
+
+cat("Cleaned sample size:", nrow(starwars_clean), "characters with complete biometric data.\n")
+```
+
+## Data Selection & Feature Engineering (New Variables)
+
+We compute the `BMI` variable and select the relevant operational columns:
+
+```{r feature-engineering}
+starwars_bmi <- starwars_clean %>%
+  mutate(
+    height_m = height / 100,
+    BMI = mass / (height_m^2)
+  ) %>%
+  select(name, species, homeworld, height, mass, BMI)
+
+# Display preview
+starwars_bmi %>% head(6) %>% kable(digits = 2, caption = "First 6 Records with Computed BMI")
+```
+
+---
+
+# Data Exploration & Benchmark Computation
+
+## Summary Statistics
+
+```{r summary-stats}
+starwars_bmi %>%
+  select(height, mass, BMI) %>%
+  skim()
+```
+
+## Benchmark: Average BMI on Tatooine
+
+We isolate characters originating from **Tatooine** and calculate their benchmark mean BMI:
+
+```{r tatooine-benchmark}
+# Tatooine characters subset
+tatooine_chars <- starwars_bmi %>%
+  filter(homeworld == "Tatooine")
+
+# Average BMI calculation
+tatooine_avg_bmi <- mean(tatooine_chars$BMI, na.rm = TRUE)
+
+cat("Average BMI on Tatooine:", round(tatooine_avg_bmi, 2), "kg/m²\n")
+```
+
+```{r tatooine-table}
+kable(
+  tatooine_chars %>% select(name, species, height, mass, BMI),
+  digits = 2,
+  caption = "Tatooine Reference Group"
+)
+```
+
+---
+
+# Final Result & Deliverable
+
+## Characters Exceeding Tatooine Benchmark (Grouped & Ordered)
+
+We filter characters whose $BMI > \overline{BMI}_{\text{Tatooine}}$, group by `homeworld`, and arrange in descending order of BMI:
+
+```{r final-table}
+final_bmi_report <- starwars_bmi %>%
+  filter(BMI > tatooine_avg_bmi) %>%
+  group_by(homeworld) %>%
+  arrange(homeworld, desc(BMI)) %>%
+  select(name, homeworld, species, BMI)
+
+kable(
+  final_bmi_report,
+  digits = 2,
+  caption = paste("Characters with BMI > Tatooine Average (", round(tatooine_avg_bmi, 2), " kg/m²), Grouped by Homeworld")
+)
+```
+
+---
+
+# Visual Distribution
+
+```{r bmi-plot, fig.height=6}
+# Top 15 characters visual comparison with Tatooine threshold
+top_characters <- starwars_bmi %>%
+  filter(BMI > tatooine_avg_bmi) %>%
+  arrange(desc(BMI)) %>%
+  head(12)
+
+ggplot(top_characters, aes(x = reorder(name, BMI), y = BMI, fill = homeworld)) +
+  geom_col(show.legend = TRUE, alpha = 0.85) +
+  geom_hline(yintercept = tatooine_avg_bmi, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 3, y = tatooine_avg_bmi + 25, 
+           label = paste("Tatooine Mean (", round(tatooine_avg_bmi, 1), ")"), color = "red", fontface = "bold") +
+  coord_flip() +
+  labs(
+    title = "Top Star Wars Characters Exceeding Tatooine Benchmark BMI",
+    subtitle = "Calculated via dplyr pipeline",
+    x = "Character Name",
+    y = "Body Mass Index (BMI)"
+  ) +
+  theme_minimal(base_size = 12)
+```

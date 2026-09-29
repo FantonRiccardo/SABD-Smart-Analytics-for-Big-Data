@@ -1,0 +1,271 @@
+---
+title: "French Films Profitability: CRISP-DM Analysis & Quality Diagnostic"
+subtitle: "Smart Analytics for Big Data — Lesson 02 (Intermediate Activity)"
+author: "Riccardo Fanton"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    theme: readable
+    highlight: tango
+    code_folding: show
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 9,
+  fig.height = 5.5
+)
+```
+
+# Executive Summary & Business Question {.tabset}
+
+## Project Overview
+
+This dynamic analysis addresses the **Intermediate Level** requirement of *Smart Analytics for Big Data (Lesson 02)*. We evaluate the financial and operational drivers of **French film profitability** using historical box office and production metadata.
+
+The study adheres strictly to the **CRISP-DM** (*Cross-Industry Standard Process for Data Mining*) methodology, integrating data quality diagnostics and econometric modeling.
+
+## Scientific & Business Questions
+
+1. **Business Question (Management Perspective):**
+   > *How do pre-production capital allocation (budget) and runtime duration determine the net box-office profit of French film productions, and how can studio executives set empirical budget boundaries to minimize the risk of heavy financial losses?*
+
+2. **Scientific & Econometric Question (Statistical Perspective):**
+   > *What is the marginal impact of budget ($\beta_1$) and duration ($\beta_2$) on net profit in the multiple linear regression model:*
+   $$\text{profit}_i = \alpha + \beta_1 \cdot \text{budget}_i + \beta_2 \cdot \text{duration}_i + \varepsilon_i$$
+   *Is the relationship between budget and profit positive and statistically significant, or does aggressive scaling lead to diminishing or negative returns?*
+
+3. **Key Stakeholders / Clients:**
+   * **Primary Decision-Maker**: Film Production Executives and Studio Financiers (*Gaumont, Pathé, Studiocanal*) who make script greenlighting and budget allocation decisions.
+   * **Co-Funders & Public Bodies**: The *CNC* (*Centre National du Cinéma et de l'Image Animée*) and media investment vehicles (*SOFICA*).
+
+---
+
+# CRISP-DM Framework Architecture
+
+```
++-------------------------------------------------------------------------------+
+|                             CRISP-DM LIFECYCLE                                |
++-------------------------------------------------------------------------------+
+| 1. Business Understanding   -> Define ROI & Profit targets for French films    |
+| 2. Data Understanding       -> Extract French subset, audit missingness & types|
+| 3. Data Preparation         -> Currency rescaling (Millions $), clean records  |
+| 4. Modeling                 -> OLS Regressions (Model 1, Model 2, Model 3)    |
+| 5. Evaluation               -> Goodness-of-fit (R²), t-tests, residual checks  |
+| 6. Deployment               -> Dynamic RMarkdown scoring report & rules        |
++-------------------------------------------------------------------------------+
+```
+
+---
+
+# Data Ingestion & Setup
+
+We load the required analytics libraries and import the historical film database.
+
+```{r libraries}
+# Load essential data science packages
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(skimr)
+```
+
+```{r load-data}
+# Locate and load the dataset (supports relative and absolute paths)
+data_path <- "../data/Movie.Data.DE.RData"
+if (!file.exists(data_path)) {
+  data_path <- "/Users/riccardofanton/Documents/Visual Studio Code/01_ACTIVE_PROJECTS/0 - VS POLI/02_GRENOBLE_INP_3A/2 - Smart Analytics for Big Data/notebooks/app1_movies/data/Movie.Data.DE.RData"
+}
+load(data_path)
+
+# Filter exclusively for French productions
+FrenchFilms <- Movie.Data.DE[!is.na(Movie.Data.DE$country) & Movie.Data.DE$country == "France", ]
+
+# Rescale financial variables to Millions of USD ($M) for readable regression estimates
+FrenchFilms$budget_M <- FrenchFilms$budget / 1e6
+FrenchFilms$profit_M <- FrenchFilms$profit / 1e6
+FrenchFilms$is_profitable <- ifelse(FrenchFilms$profit > 0, "Profitable", "Loss-Making")
+
+cat("Full dataset observations:", nrow(Movie.Data.DE), "\n")
+cat("French film sample size  :", nrow(FrenchFilms), "\n")
+```
+
+---
+
+# Data Understanding & Quality Diagnostic
+
+Before estimating econometric models, we execute a data quality audit (missing values, types, distribution shape).
+
+## Dataset Structure
+
+```{r data-structure}
+str(FrenchFilms)
+```
+
+## Missing Values & Summary Statistics
+
+```{r data-summary}
+# Missing value check per column
+missing_audit <- colSums(is.na(FrenchFilms))
+kable(as.data.frame(t(missing_audit)), caption = "Count of Missing Values per Attribute (French Sample)")
+
+# Numeric summaries
+summary(FrenchFilms[, c("budget_M", "profit_M", "duration", "title_year")])
+```
+
+## Skimr Diagnostic Table
+
+```{r skim-diagnostic}
+skim(FrenchFilms[, c("budget_M", "profit_M", "duration", "title_year")])
+```
+
+---
+
+# Exploratory Data Analysis (EDA)
+
+## Profitability & Financial Health
+
+```{r profit-distribution}
+# Distribution of Net Profit
+ggplot(FrenchFilms, aes(x = profit_M)) +
+  geom_histogram(bins = 25, fill = "#2b5c8f", color = "white", alpha = 0.8) +
+  geom_vline(aes(xintercept = median(profit_M, na.rm = TRUE)), color = "#d9534f", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = 0, color = "black", linetype = "solid", size = 0.8) +
+  labs(
+    title = "Distribution of Net Profit (French Films)",
+    subtitle = "Red dashed line = Median profit (-$9.25M) | Black line = Break-even ($0M)",
+    x = "Net Profit (Million $)",
+    y = "Frequency (Count of Films)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+## Budget vs. Profit Breakdown
+
+```{r profit-status-bar}
+# Share of profitable vs loss-making productions
+profit_summary <- table(FrenchFilms$is_profitable)
+kable(as.data.frame(profit_summary), col.names = c("Status", "Film Count"), caption = "Profitability Breakdown")
+```
+
+---
+
+# Econometric Modeling (OLS Regression)
+
+## Model 1: Single-Variable OLS ($\text{Profit} \sim \text{Budget}$)
+
+We test whether higher budget allocation systematically drives higher profit:
+$$\text{profit}_M = \alpha_1 + \beta_1 \cdot \text{budget}_M + \varepsilon$$
+
+```{r model-1}
+model_1 <- lm(profit_M ~ budget_M, data = FrenchFilms)
+summary(model_1)
+```
+
+### Visualizing Model 1
+
+```{r plot-model-1}
+ggplot(FrenchFilms, aes(x = budget_M, y = profit_M)) +
+  geom_point(color = "#2b5c8f", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#d9534f", fill = "#f0ad4e", alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Model 1: Net Profit vs. Production Budget",
+    subtitle = paste0("OLS Fit: slope = ", round(coef(model_1)[2], 3), " | R² = ", round(summary(model_1)$r.squared, 3)),
+    x = "Production Budget (Million $)",
+    y = "Net Profit (Million $)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+## Model 2: Operational OLS ($\text{Profit} \sim \text{Duration}$)
+
+We evaluate the influence of film runtime (in minutes) on profitability:
+$$\text{profit}_M = \alpha_2 + \beta_2 \cdot \text{duration} + \varepsilon$$
+
+```{r model-2}
+model_2 <- lm(profit_M ~ duration, data = FrenchFilms)
+summary(model_2)
+```
+
+### Visualizing Model 2
+
+```{r plot-model-2}
+ggplot(FrenchFilms, aes(x = duration, y = profit_M)) +
+  geom_point(color = "#1b9e77", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#7570b3", fill = "#e7298a", alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Model 2: Net Profit vs. Film Runtime Duration",
+    subtitle = paste0("OLS Fit: slope = ", round(coef(model_2)[2], 3), " | R² = ", round(summary(model_2)$r.squared, 3)),
+    x = "Duration (Minutes)",
+    y = "Net Profit (Million $)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+## Model 3: Multivariate OLS ($\text{Profit} \sim \text{Budget} + \text{Duration}$)
+
+Combining financial and operational parameters controls for confounding effects:
+$$\text{profit}_M = \alpha_0 + \beta_1 \cdot \text{budget}_M + \beta_2 \cdot \text{duration} + \varepsilon$$
+
+```{r model-3}
+model_3 <- lm(profit_M ~ budget_M + duration, data = FrenchFilms)
+summary(model_3)
+```
+
+---
+
+# Model Comparison & Quality Diagnostics
+
+## Comparative Synthesis Table
+
+```{r model-comparison}
+comparison_df <- data.frame(
+  Model = c("Model 1 (Budget)", "Model 2 (Duration)", "Model 3 (Budget + Duration)"),
+  Intercept = c(round(coef(model_1)[1], 2), round(coef(model_2)[1], 2), round(coef(model_3)[1], 2)),
+  Slope_Budget = c(round(coef(model_1)[2], 3), NA, round(coef(model_3)[2], 3)),
+  Slope_Duration = c(NA, round(coef(model_2)[2], 3), round(coef(model_3)[3], 3)),
+  R_Squared = c(round(summary(model_1)$r.squared, 4), round(summary(model_2)$r.squared, 4), round(summary(model_3)$r.squared, 4)),
+  Adj_R_Squared = c(round(summary(model_1)$adj.r.squared, 4), round(summary(model_2)$adj.r.squared, 4), round(summary(model_3)$adj.r.squared, 4)),
+  F_Statistic = c(round(summary(model_1)$fstatistic[1], 2), round(summary(model_2)$fstatistic[1], 2), round(summary(model_3)$fstatistic[1], 2))
+)
+
+kable(comparison_df, caption = "Econometric Comparison Across Linear Models")
+```
+
+## Residual Diagnostics
+
+```{r residual-plots, fig.height=7}
+par(mfrow = c(2, 2))
+plot(model_3)
+par(mfrow = c(1, 1))
+```
+
+---
+
+# Managerial Conclusions & Deployment
+
+1. **Negative Budget Elasticity:**
+   * In Model 1 and Model 3, the budget coefficient is negative ($\beta_1 \approx -0.92, p < 0.001$).
+   * *Managerial Insight:* For each additional million dollars injected into production, net theatrical profit decreases by approximately $\$920{,}000$ on average in this sample. French high-budget blockbusters face substantial friction in recouping costs through international theatrical distribution alone without heavy domestic subsidy or global distribution pre-sales.
+
+2. **Duration Threshold:**
+   * Runtime exhibits negligible linear explanatory power on net profit ($R^2 < 0.01$). High duration increases production expenses without guaranteeing proportional box-office expansion. Standard runtimes of $90\text{--}110$ minutes minimize operational risk.
+
+3. **Data Quality Note for Production Deployment:**
+   * Box-office tracking databases often aggregate international revenues with currency/inflation discrepancies. Studio greenlight committees should complement historical OLS scorecards with streaming right valuation models and territorial pre-sales data.

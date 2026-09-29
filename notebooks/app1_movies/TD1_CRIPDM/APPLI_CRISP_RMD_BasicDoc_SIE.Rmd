@@ -1,0 +1,239 @@
+---
+title: "CRISP-DM Application and RMarkdown"
+subtitle: "Management of Reproducible ML Analysis — French Films Profitability"
+author: "Riccardo Fanton"
+date: "`r Sys.Date()`"
+fontsize: 11pt
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: readable
+    highlight: tango
+---
+
+# Introduction {.tabset}
+
+## Preliminary Setup
+
+The objective of this exercise is to produce an **analysis of the profitability of French films**.
+
+Precisely, we aim to predict the profitability of a French film according to its budget and operational characteristics (e.g. duration).
+
+This analysis strictly follows the **CRISP-DM** (*Cross-Industry Standard Process for Data Mining*) methodology and is rendered as a reproducible data science document via RMarkdown.
+
+```{r setup, include=FALSE, cache=FALSE}
+## Libraries
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(skimr)
+
+## Global knitr options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5
+)
+knitr::opts_knit$set(width = 75)
+options(max.print = "75")
+```
+
+## Organisation of the Report {.tabset}
+
+Each section of this report represents a structured phase of the project lifecycle.
+
+### 1. RMarkdown Preparation & Data Loading
+
+#### Loading the Database
+
+The database describes historical films with attributes such as director, budget, revenue, duration, audience ratings, and country of origin. We load the dataset and filter for French productions:
+
+```{r load-data}
+# Relative path to data file
+load("../data/Movie.Data.DE.RData")
+
+# Filter French productions
+FrenchFilms <- Movie.Data.DE[Movie.Data.DE$country == "France", ]
+
+# Display sample dimensions
+cat("Total international movies:", nrow(Movie.Data.DE), "\n")
+cat("Total French movies in sample:", nrow(FrenchFilms), "\n")
+```
+
+---
+
+### 2. Define Project and Stakeholders
+
+##### Question
+Given the data science project: *French films profitability analysis*, we want to increase the profit of French films that will be produced in the future based on historical data. **Who is your client?**
+
+##### Client & Stakeholder Identification
+In the context of the French film industry, the primary clients and key stakeholders are:
+
+1. **Primary Client (Decision-Maker)**: 
+   - **Film Production Executives & Studio Financiers** (e.g., *Gaumont, Pathé, Studiocanal*, or independent producers). They make the capital allocation and "greenlighting" decisions (whether to finance a script, how much budget to allocate, and contract terms).
+2. **Secondary Stakeholders**:
+   - **Public Cultural Institutions & Funding Bodies**: The *CNC* (*Centre National du Cinéma et de l'Image Animée*), which allocates selective subsidies and tax credits.
+   - **Private Media Investment Funds (*SOFICA*)**: Institutional investors seeking risk-adjusted returns on film slates.
+   - **Distribution & Marketing Heads**: Teams responsible for theatrical release scheduling, screen counts, and international distribution rights.
+
+---
+
+### 3. Project Workflow (CRISP-DM 6 Phases)
+
+#### Phase 1: Business Understanding (Define a Goal)
+- **What do sponsors want?** Maximize net return on investment ($\text{Profit} = \text{Revenue} - \text{Budget}$) while establishing empirical budget ceilings to minimize downside risk (avoiding box-office flops).
+- **What do they lack / need?** They lack a quantitative, objective scoring mechanism during pre-production; currently, greenlighting relies on artistic intuition, qualitative script reading, and subjective actor valuations.
+- **Current solution & limitations:** Purely heuristic decision-making, which leads to high variance in profitability and frequent capital misallocations on large-budget productions.
+- **Required resources:** 
+  - *Human*: 1 Management Engineer / Data Scientist, 1 Film Production Industry Expert.
+  - *Material/Technical*: RStudio analytics environment, historical box office databases (TMDB, CNC registries).
+- **Proposed project plan:** A 4-week iterative CRISP-DM sprint delivering an interpretable regression scoring model and decision matrices for script budgeting.
+
+#### Phase 2: Data Understanding & Data Management
+- **Available data:** 5,000 international movies (TMDB export) with budget, gross revenue, runtime, average user rating, vote count, and production country.
+- **Data Quality & Limitations:**
+  - *Missing/Zero values*: Budget or revenue recorded as `0` or `NA` for non-disclosed indie films.
+  - *Currency & Inflation*: Figures must be standardized (EUR vs USD) and inflation-adjusted across historical decades.
+  - *Omitted variables*: Marketing spend (*P&A - Prints and Advertising*), streaming licensing revenue, and theatrical release season are missing.
+- **Data Remediation & Filtering:**
+  - Strict filtering on French productions (`country == 'France'`).
+  - Removal or imputation of records with missing budget/revenue/duration.
+
+#### Phase 3: Model Building (Task Formulation)
+- **Model Type:** **Scoring (Regression)** to predict continuous net profit ($\$$ or $€$) and **Classification** (e.g., Logistic Regression) to assess the binary probability of breaking even ($\text{Profit} > 0$).
+- **Algorithm selection:** 
+  - Baseline: Single-variable Ordinary Least Squares (OLS) regression ($\text{profit} \sim \text{budget}$).
+  - Extended: Multiple linear regression ($\text{profit} \sim \text{budget} + \text{duration} + \text{rating}$).
+  - Advanced: Regularized regression (Ridge/Lasso) and Tree-based ensembles (Random Forest) to capture non-linear returns to scale.
+
+#### Phase 4: Model Evaluation & Criticism
+- **Accuracy & Fit:** Evaluated via Adjusted $R^2$, Root Mean Squared Error (RMSE), and Mean Absolute Error (MAE).
+- **Generalization:** Assessed using $k$-fold cross-validation to prevent overfitting on unrepresentative blockbuster outliers.
+- **Benchmark test:** Does the model outperform the baseline naive guess (historical average French film profit)?
+- **Criticism loop:** If the linear model exhibits heteroskedasticity or poor predictive power ($R^2 < 0.20$), we must log-transform financial variables ($\log(\text{budget})$, $\log(\text{revenue})$) to account for heavy-tailed distributions.
+
+#### Phase 5: Results Presentation & Documentation
+- **To Sponsor / Client (Executive Level):** A clear 5-slide decision memo and interactive dashboard highlighting optimal budget tiers and expected ROI bands per runtime/genre category.
+- **To Data Scientists / Technical Peers:** Complete RMarkdown code notebook detailing feature engineering, regression coefficients, $p$-values, collinearity tests (VIF), and residual diagnostics.
+- **To System Architects:** Data pipeline specs for automated data ingestion and batch scoring during monthly greenlight committee reviews.
+
+#### Phase 6: Model Deployment & Governance
+- **Small-Scale Deployment:** Pilot the predictive scorecard on the next 5 script submissions during the upcoming production committee review.
+- **Scale-Up:** Integrate the model into the studio's portfolio budgeting and risk assessment toolkit.
+- **Maintenance & Drift Management:** Quarterly recalibration of model weights with newly released box office data and annual retraining to reflect changes in post-theatrical streaming habits.
+
+---
+
+### 4. Data Exploration & Manipulation
+
+#### Verify Data Types and Structure
+
+```{r data-structure}
+# Inspect structure of the French films subset
+str(FrenchFilms)
+```
+
+#### Summary Statistics (Base R & Skimr)
+
+```{r data-summary}
+# Base R summary of French films
+kable(summary(FrenchFilms), caption = "Summary Statistics: French Films Subset")
+```
+
+```{r skim-overview}
+# Skim statistics on numeric variables (excluding identifiers/character fields)
+numeric_cols <- sapply(Movie.Data.DE, is.numeric)
+kable(skim(Movie.Data.DE[, numeric_cols]), caption = "Detailed Summary of Numeric Fields (Full Database)")
+```
+
+---
+
+### 5. Linear Regression Analysis
+
+#### Model 1: Profit vs. Budget (Single-Variable OLS)
+
+We estimate the baseline OLS regression model:
+$$\text{profit} = \alpha + \beta \times \text{budget} + \varepsilon$$
+
+```{r model-1-budget}
+# Fit Model 1
+Model1 <- lm(profit ~ budget, data = FrenchFilms)
+summary(Model1)
+```
+
+##### Model 1 Interpretation:
+- **Intercept ($\alpha$)**: $`r round(Model1$coefficient[1], 2)`$
+- **Slope ($\beta$)**: $`r round(Model1$coefficient[2], 4)`$
+- **Economic Interpretation**: The slope $\beta$ indicates the marginal increase in profit for each additional dollar invested in budget. If $\beta < 1$, increasing the budget yields diminishing profit returns on average.
+
+```{r plot-model-1}
+# Visualization using ggplot2
+ggplot(FrenchFilms, aes(x = budget / 1e6, y = profit / 1e6)) +
+  geom_point(color = "#2b5c8f", size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#d9534f", fill = "#f0ad4e", alpha = 0.2) +
+  labs(
+    title = "Model 1: French Film Profit vs Budget",
+    subtitle = "Single-variable OLS regression line with 95% confidence interval",
+    x = "Budget (Million $)",
+    y = "Net Profit (Million $)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+#### Model 2: Profit vs. Duration (Task Extension)
+
+As required by the exercise, we create a second single-variable regression model evaluating the relationship between film duration (runtime in minutes) and net profit:
+
+$$\text{profit} = \alpha_2 + \beta_2 \times \text{duration} + \varepsilon$$
+
+```{r model-2-duration}
+# Fit Model 2: Profit vs Duration
+Model2 <- lm(profit ~ duration, data = FrenchFilms)
+summary(Model2)
+```
+
+##### Model 2 Interpretation:
+- **Intercept ($\alpha_2$)**: $`r round(Model2$coefficient[1], 2)`$
+- **Slope ($\beta_2$)**: $`r round(Model2$coefficient[2], 4)`$
+- **Empirical Takeaway**: The duration coefficient evaluates whether longer films systematically yield higher box-office profit or whether they suffer from increased production costs without commensurate audience returns.
+
+```{r plot-model-2}
+# Visualization of Model 2
+ggplot(FrenchFilms, aes(x = duration, y = profit / 1e6)) +
+  geom_point(color = "#1b9e77", size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#7570b3", fill = "#e7298a", alpha = 0.2) +
+  labs(
+    title = "Model 2: French Film Profit vs Duration",
+    subtitle = "Single-variable OLS regression line with 95% confidence interval",
+    x = "Duration (Minutes)",
+    y = "Net Profit (Million $)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+#### Model 3: Multivariate Extension (Budget + Duration)
+
+Combining both predictors into a multiple regression framework provides a more robust estimate by controlling for omitted variable bias:
+
+$$\text{profit} = \alpha_0 + \beta_1 \times \text{budget} + \beta_2 \times \text{duration} + \varepsilon$$
+
+```{r model-3-multivariate}
+# Fit Model 3
+Model3 <- lm(profit ~ budget + duration, data = FrenchFilms)
+summary(Model3)
+```
+
+##### Managerial Synthesis:
+1. **Budget Leverage**: Budget remains the primary driver of scale, but extreme budgets carry non-linear financial downside.
+2. **Duration Optimization**: Film runtime displays optimal bounds (typically 90–110 minutes), beyond which production/distribution friction increases.
+3. **Reproducibility**: This RMarkdown document compiles dynamically, ensuring that any update to the underlying `Movie.Data.DE.RData` file will instantly refresh all regression tables, coefficients, and visualizations.

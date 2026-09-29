@@ -1,0 +1,28 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# R / RStudio history and workspace images
+.Rhistory
+.RDataTmp
+.Ruserdata
+.Rproj.user/
+
+# Knitr / RMarkdown cache and intermediate files
+*_cache/
+*.knit.md
+*.utf8.md
+
+# Python / virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Sensitive or temporary environment files
+.env
+*.tmp
