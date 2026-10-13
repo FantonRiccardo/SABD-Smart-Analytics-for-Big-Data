@@ -1,0 +1,616 @@
+---
+title: "SABD Project: Urban Mobility Analysis"
+subtitle: "Part 1 - Project Statement & Organisation "
+author: "I. Joly, G. Vargas"
+date: "Academic year 2026-2027"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+header-includes:
+  \renewcommand{\contentsname}{Table of Content}
+  \usepackage{tcolorbox}
+  \newtcolorbox{blackbox}{
+  colback=black,
+  colframe=orange,
+  coltext=white,
+  boxsep=5pt,
+  arc=4pt}
+link-citations: yes
+biblio-style: apalike
+bibliography: ["biblio/Project_biblio.bib"]
+nocite: |
+  @xie2015, @Chang2013, @xie2016, @Munzner2015, @harrell2013regression
+---
+
+
+<!-- Installation instructions (not displayed in the PDF)
+  - This Rmd file is in the main project folder.
+  - Required sub-folder: "biblio" containing "Project_biblio.bib".
+  - Data file "allgre.PB_V2.RData" must be in the main folder.
+  - The FOND_MAP folder contains the NewESRI.* files (useful to test the GIS representation).
+  - If the data file is missing, the document still knits: data chunks are skipped
+    and a warning is displayed (see chunk "setup").
+-->
+
+```{r definitions, echo=FALSE, results='hide'}
+# TODO (teachers): check the dates every year
+duedate        <- "28/01/2027"   # final deadline (Caseine), 11:59 p.m.
+academic_year  <- "2026-2027"
+SEED           <- 2026           # common seed for ALL groups (splits, folds, clustering)
+```
+
+
+```{r setup, include=FALSE, cache=FALSE}
+## ---- Packages -------------------------------------------------------------
+## Missing packages are installed automatically (internet connection required).
+pkgs <- c("tidyverse", "knitr", "skimr", "tinytex")
+missing_pkgs <- setdiff(pkgs, rownames(installed.packages()))
+if (length(missing_pkgs) > 0) install.packages(missing_pkgs)
+
+library(tidyverse)
+library(knitr)
+library(skimr)
+
+## ---- Global chunk options -------------------------------------------------
+knitr::opts_chunk$set(
+  echo    = TRUE,    # display the code in the document
+  eval    = TRUE,    # chunks are run, unless eval=FALSE is set explicitly
+  message = FALSE,   # hide R messages
+  warning = FALSE    # hide R warnings
+)
+knitr::opts_knit$set(width = 75)
+options(max.print = 75)
+
+## ---- Data availability ----------------------------------------------------
+data_file <- "allgre.PB_V26.RData"
+data_ok   <- file.exists(data_file)
+if (!data_ok) {
+  warning("File '", data_file, "' not found in ", getwd(),
+          ": data chunks are skipped.")
+}
+```
+
+
+```{r data-missing-note, echo=FALSE, results='asis', eval=!data_ok}
+cat("\\begin{center}\\textbf{WARNING: the file allgre.PB\\_V26.RData was not found. ",
+    "Code chunks relying on the data were skipped.}\\end{center}")
+```
+
+\newpage
+# Statement
+
+The MOBILITY project is introduced through a statement in 2 parts / 2 documents:
+
+1. The first part focuses on the data science project organisation (team work, IT work), on the **methodological framework** common to all groups, and on the workflow for reproducible document writing.
+2. The second part focuses on data handling: variable creation and modification, and GIS.
+
+
+## Objectives of the Part 1
+
+This first part of the project is dedicated to :
+
++ **Data science work organisation**: first step is to make this statement file reproducible on your own machine.
++ **Team work organisation**: second step is to define the team and to get a topic to work on during the semester.
++ **Methodological framework**: read carefully Section \ref{sec:method}, which defines the rules shared by all groups (unit of analysis, weights, evaluation protocol, clustering, etc.).
++ **Literature**: start looking at the literature relevant to your topic.
+
+Keywords for the literature on the proposed topics: urban mobility, public transport, motorized transport modes, travel behavior, mode choice, travelled distance, travel time, residential location.
+
+Suggested scientific journals: *Transportation*; *Transportation Research* (parts A to E); *Transportation Research Record*; *Transport Reviews*; *International Journal of Transport Economics*; *Journal of Choice Modelling*.
+
+
+## Calendar and milestones
+
+To avoid concentrating the work in the last weeks, the following milestones are **checked** (not graded individually, but missing a milestone is taken into account in the final mark).
+
+| Milestone | Expected deliverable | Date |
+|:--------|:-------------------------------------------|:-----------|
+| M0 | Statement Rmd knitted to PDF on your machine; group of 3-4 declared | 06/10/2026 |
+| M1 | Topic assigned; 1-page note: unit of analysis, definition of $Y$, first references | 20/10/2026 |
+| M2 | Clean analysis dataset (right unit, created variables) + descriptive statistics | 10/11/2026 |
+| M3 | Strategy and clustering (variable $W$) | 01/12/2026 |
+| M4 | Prediction and explanation models | 01/12/2026 |
+| Final | Report (PDF) + Rmd + all files to reproduce, uploaded on Caseine | `r duedate` |
+
+
+***
+
+\newpage
+
+## Project Statement
+
+- This project is a **3 or 4** students group work. 
+- All groups work on the same database, with same expectations, but with different angles and research questions.
+- Each group has a specific **scientific question** (from the list of topics at the end of this document; the topic assignment is random).
+- Each topic specifies:
+  1. A variable of interest $Y$ (with its **unit of analysis**, see Section \ref{sec:method});
+  2. Variables $X$ and $Z$ to be **systematically included** in the analysis;
+  3. A specific focus to be integrated in the analysis. The variables describing this focus must be *identified / chosen* and **justified** by the students; they are synthesized in a new variable $W$.
+
+Each topic is analyzed through the following steps:
+
+1. **Present and describe** the dataset you are using, without giving priority to one variable over another: remarkable characteristics, properties of the variables, underlying structure, creation of variables, factorization, etc. In particular, answer the following questions:
+    + What is the **unit of analysis** (individual, household, trip)?
+    + **How many observations** do you have, at that level and after each subsetting or deletion?
+    + What are the **variables of interest** ($Y$, $X$, $Z$ and the candidates for $W$)?
+    + What is their **quality** (missing values, special codes, outliers, implausible or rounded values, declared vs observed information; see Section \ref{sec:method})?
+2. **Summary statistics**: univariate and bivariate study of
+    + the *variable to be explained* $Y$,
+    + the *imposed variables* $X$, $Z$ and their link with $Y$,
+    + the *variables relevant to the specific focus*.
+3. **Assumptions and strategy**: based on your knowledge of the topic, on the **literature** (at least one relevant and well-chosen paper is expected) and on the summary statistics, *define* and **justify**:
+    + the expected factors of $Y$;
+    + your methodological choices (types of analysis, models);
+    + your strategy (subsetting, algorithms, data handling, treatment of missing values).
+4. **Specific focus (variable $W$)**: construct a new variable $W$ synthesizing a subset of variables, following the clustering framework of Section \ref{sec:cluster}. You are asked to:
+    + select all pertinent variables related to the specific focus;
+    + prepare them (cleaning, coding, scaling) to build groups of users with a similar situation regarding the focus;
+    + cluster the observations; the cluster label is stored in $W$;
+    + analyze and name the clusters with respect to the focus variables;
+    + iterate if needed. 
+5. **Prediction** of $Y$ from $X$, $Z$ and $W$, following the evaluation protocol of Section \ref{sec:eval}:
+    + select (with justification) at least two prediction models, one of which is a simple baseline;
+    + make predictions on data not used for fitting;
+    + evaluate each model with metrics adapted to the type of $Y$;
+    + compare the approaches.
+6. **Explanation** of the relationships between $Y$ and the explanatory variables, with an *interpretable* model (see Section \ref{sec:predexpl}):
+    + *discuss* the statistical significance (or equivalent notion) of the links;
+    + *interpret* them in terms of mobility behavior;
+    + *conclude* on the assumptions stated in step 3;
+    + *discuss the limits*: causality vs association, survey year, representativity.
+
+
+You will produce a **report of 10 pages maximum** (A4, 11 pt font, 2 cm margins minimum, figures and tables included; references and appendices excluded), with **at most 8 pages of appendices**. For each step, specify if you worked on a subset of observations and/or deleted or created variables.
+
+The body of the report is a synthesis of your analyses: present what you think is most important. Concrete elements (values, tables, figures) support your assertions, but the details belong to the appendices. For example, for correlations, show only the most significant ones in the report and put the full matrix in an appendix.
+
+Do not hesitate to discuss with the groups working on other topics: the issues are linked and some results can be used by others (always cite the source of what you reuse).
+
+***
+
+\newpage
+
+
+# Methodological framework shared by all groups {#sec:method}
+
+This section was added because the points below are the most frequent sources of errors and of non-comparable results between groups. **Each of them must be addressed explicitly in your report** (one sentence is enough when the point is not relevant, as long as you say why).
+
+## Unit of analysis and pseudo-replication
+
+The database has **one row per route (segment of a trip)**; trips are nested in individuals, which are nested in households. Each topic has a natural unit of analysis:
+
+| Topic | Unit of analysis | Type of $Y$ |
+|:-----------------------------|:-----------|:------------------------|
+| 1. Daily travel times | Individual | Continuous, positive, skewed |
+| 2. Mode choice (car) | Trip | Binary |
+| 3. Mobility behavior | Individual | Binary |
+| 4. Household motorization | Household | Binary |
+| 5. Engine type | Household (motorized only) | Binary |
+| 6. Use of urban public transport | Individual | Binary |
+| 7. Rush-hour trips | Trip | Binary (see topic 7) |
+| 8. Travelled distance | Trip | Continuous, positive, skewed |
+
+Moving from one level to another requires **reducing the database** (one row per individual, per household or per trip). Analyzing trips as if they were independent observations violates the independence assumption (trips of one person are correlated, and so are the persons of one household). When the unit is the trip, you must at least **mention and handle** this dependence (cluster-robust standard errors, mixed model with random effect, or aggregation). The same applies to individuals within households.
+
+The chunk `analysis-units` in Part Two builds the three datasets for you.
+
+## Missing values, outliers, coding
+
+Report the missing-value rate of each variable you use and your treatment (deletion, imputation, explicit category). Check implausible values (e.g. very long or null durations, speeds). Specify if the dictionary uses special codes for "not applicable" or "refusal".
+
+## Dependencies between explanatory variables
+
+Discuss the relationships between $X$, $Z$ and the other variables (collinearity, confounding, mediation). For example, the driving licence and the age are strongly related (minors cannot hold a licence), and the licence is also a determinant of the car ownership. Say what the imposed variables do in *your* model (control, confounder, variable of interest).
+
+## Prediction and explanation are different tasks {#sec:predexpl}
+
+| | Prediction | Explanation |
+|:----------------|:----------------------------|:----------------------------|
+| Goal | Accurate $\hat Y$ on new data | Understand the effect of each variable |
+| Typical models | Random forest, gradient boosting, regularized regression, ... | Logistic / Poisson / Gamma GLM, linear model on $\log Y$, mixed models |
+| Quality criteria | Out-of-sample metrics | Coefficients, odds ratios, confidence intervals, diagnostics |
+| Risk | Overfitting, leakage | Confounding, misinterpretation of causality |
+
+Both are expected in the report, with the corresponding criteria. A prediction model can be used to *support* the explanation (variable importance, partial dependence), not to replace it.
+
+## Evaluation protocol {#sec:eval}
+
+All groups follow the same protocol so that results are comparable.
+
+1. **Common seed**: `SEED` defined at the top of this document (`r SEED`). Use `set.seed(SEED)` before every random operation.
+2. **Split by group**: observations of the same household (and a fortiori of the same individual) must **never** be split between training and test sets, otherwise the test score is overestimated. Use the helper functions below.
+3. **Hold-out test set** (20 % of the households), used **once**, for the final comparison. Model selection and tuning are done by **grouped cross-validation** (5 folds) on the training set.
+4. **Baseline**: always compare with a trivial model (majority class or mean) and with a simple model (logistic regression / linear model).
+5. **Metrics adapted to $Y$**:
+    + binary $Y$: AUC, precision/recall/F1, confusion matrix at a justified threshold, balanced accuracy; **report the class balance** and do not rely on accuracy alone when classes are imbalanced;
+    + continuous $Y$: RMSE, MAE, $R^2$ out-of-sample, and the same metrics on the original scale if you transform $Y$.
+6. **No leakage**: no variable that is a function of $Y$, nor measured after $Y$, may be used as predictor (see the pitfalls of topics 3, 7 and 8).
+
+```{r eval-helpers}
+# Fold assignment by group: all rows of a group (e.g. a household) get the same fold
+make_group_folds <- function(group_id, k = 5, seed = SEED) {
+  set.seed(seed)
+  u <- unique(group_id)
+  fold_of_group <- sample(rep(seq_len(k), length.out = length(u)))
+  fold_of_group[match(group_id, u)]
+}
+
+# Train / test split by group (default 80 % / 20 % of the groups)
+split_by_group <- function(df, group = "id_men", p_train = 0.8, seed = SEED) {
+  set.seed(seed)
+  u <- unique(df[[group]])
+  train_ids <- sample(u, size = round(p_train * length(u)))
+  list(train = df[df[[group]] %in% train_ids, ],
+       test  = df[!df[[group]] %in% train_ids, ])
+}
+```
+
+Example of use (the group variable is always the **household**, `id_men`, whatever the unit of analysis):
+
+```{r eval-helpers-example, eval=FALSE}
+sp    <- split_by_group(allgreD, group = "id_men")
+train <- sp$train
+train$fold <- make_group_folds(train$id_men, k = 5)
+```
+
+## Clustering framework (variable $W$) {#sec:cluster}
+
+The clustering is the most delicate step of the project. Minimal rules:
+
+1. **Variables**: only variables describing the specific focus. **$Y$ must not be used** to build $W$, nor any variable derived from $Y$ (otherwise $W$ is a disguised copy of $Y$).
+2. **Mixed data**: when variables are both quantitative and qualitative, use an appropriate approach (Gower distance + PAM/K-medoids or hierarchical clustering; or factorial analysis (PCA/MCA/FAMD) followed by clustering on the coordinates). Justify the coding and scaling.
+3. **Number of clusters**: justify it with at least two criteria (e.g. silhouette, dendrogram / inertia gap, interpretability, minimum cluster size).
+4. **Validation**: assess the **stability** (e.g. different seeds / subsamples) and describe each cluster with the focus variables.
+5. **No leakage**: fit the clustering on the **training set only**, then assign test observations to the nearest cluster (nearest medoid or nearest centroid with the training parameters). If you fit it on the whole dataset, say so and discuss the bias.
+6. **Compare** at least two algorithms or two settings, or justify why one is enough.
+
+## Ethics and limits
+
+The data come from a 2010 survey: practices have changed (e-bikes, ride-hailing, remote working...), and the sample is a subset of the survey, so discuss the **representativity** and the **limits of generalization**. Data are anonymized and the households sample has been subsampled for confidentiality: do not attempt to re-identify households and do not share the data outside the course.
+
+***
+
+
+\newpage
+
+# Database description - mobility survey
+
+## Files list
+
+- Database `allgre.PB_V2` (R format, `allgre.PB_V2.RData`)
+- Variables dictionary **DICO_VAR_EMD_GRE2010_v22.xls**
+- File **SABD_Project_MOBILITY_Part1_2026.Rmd**: this statement. Running (knitting) this file creates the analysis datasets used in the project. It is advised to run it first.
+- GIS files: grouped in the folder `FOND_MAP`; GIS codes are described in the variables dictionary
+
+
+## Data and MongoDB
+
+Data are an extract of the mobility survey of the Grenoble area in 2010 (@Cerema2013). They describe the trips made by members of households and provide individual and household characteristics (household structure, motorization, sex, age, professional status, ...) and mobility practices (number of trips, travel times, locations, modes, purposes, ...).
+
+The data are available in R format (`allgre.PB_V2.RData`). The R data frame is needed today to reproduce this statement. 
+
+## Topics and data
+
+The structure of the database is described in the sections below.
+
+***
+
+
+# List of proposed topics
+
+
+For each topic, the **unit of analysis**, the **definition of $Y$** and the main **pitfalls** are given. Variables names are in `code` style; check them in the dictionary.
+
+
+### 1. Daily travel times
+
+Analyze the **daily travel time** (variable `btt`, *Travel Time Budget*: sum of the durations of all trips made by the individual in a day). The literature uses it to define *extreme commuters*: people traveling more than 2 hours per day.
+
+- Unit: **individual**; $Y$: `btt` (continuous, skewed; consider a log transformation or a Gamma model)
+- $X$: `jourdepl` - day of the trip; $Z$: `permis` - driving licence holder
+- Focus $W$: influence of **housing** on $Y$
+- Pitfalls: check how immobile persons are coded (`btt = 0` or missing?); decide if they are kept; durations are *declared*, so look at rounding (multiples of 5 min); `jourdepl` must be unique per individual at this level.
+
+### 2. Mode of transport choice
+
+Analyze the choice of the car as a travel mode and identify its determinants among individual / household characteristics and available modes.
+
+- Unit: **trip**; $Y$: `Voiture` (to be created: `mode_V2 = 'VP'` or not; for multi-stage trips, define and justify a rule: main mode, or the mode of the longest stage)
+- $X$: `permis` - driving licence holder; $Z$: `age`
+- Focus $W$: influence of **family structure** on $Y$
+- Pitfalls: strong dependence between `age` and `permis` (collinearity, structural zeros for minors); trips of a same person are not independent (see Section \ref{sec:method}); car availability (`VP_DISPO`) is a legitimate but *endogenous* explanatory variable: discuss it.
+
+
+### 3. Mobility behavior
+
+Propose a characterization of the mobile and immobile populations and identify the determinants of mobility.
+
+- Unit: **individual**; $Y$: `immobil` (to be created: `nbd = 0` vs `nbd > 0`, where `nbd` is the number of trips)
+- $X$: `age`; $Z$: `VP_DISPO` - number of available cars in the household
+- Focus $W$: influence of **car ownership** on $Y$
+- Pitfalls: with one row per route, **check that immobile persons have a row at all** (chunk `check-immobile` below). Do not use as predictors variables that exist only for persons who travel (modes, durations, purposes): this would be leakage. 
+
+
+### 4. Household motorization
+
+What are the determinants of household motorization?
+
+- Unit: **household**; $Y$: `motorisation` (to be created: `VP_DISPO = 0` vs `VP_DISPO > 0`)
+- $X$: `taillemng` - household size; $Z$: `Permis_mng` - at least one driving licence in the household
+- Focus $W$: influence of the **sociodemographic composition of the household** on $Y$
+- Pitfalls: `Permis_mng` is both a determinant and a consequence of the motorization choice (simultaneity); aggregate individual variables at household level with explicit rules (age of the reference person, number of workers, etc.).
+
+
+### 5. Engine types
+
+Study the Grenoble car fleet. What are the determinants of choosing a diesel engine? The question can focus on the 1st vehicle of the household.
+
+- Unit: **household** (1st vehicle); $Y$: `diesel` (to be created: `ENERGIE1 = 3` vs `ENERGIE1 <> 3`, where `ENERGIE1` is the engine type of the 1st car)
+- $X$: `TYPE_HAB` - type of housing; $Z$: `taillemng` - household size
+- Focus $W$: influence of the **occupation** on $Y$
+- Pitfalls: only **motorized households** have a vehicle: there is a **selection effect** to discuss, since conclusions apply to car owners only. Check the coding of missing and "other" energy types. The age of the vehicle (`year of entry into service`) is a strong confounder of the engine type (diesel share has evolved over time).
+
+
+### 6. Frequency of use of urban public transport
+
+Study the factors associated with frequent (daily) use of urban public transport (`freqtcu`).
+
+- Unit: **individual**; $Y$: `freqtcu` (to be created: `freqtcu = 1` vs not)
+- $X$: `permis`; $Z$: `taillemng`
+- Focus $W$: influence of **car ownership** on $Y$
+- Pitfalls: `permis` is rather a *confounder* than a simple control variable (it is linked with car availability and with the choice of modes); a subscription to public transport is strongly related to $Y$: discuss whether it is a determinant or almost the same information; the frequency question is *declared* behavior, not observed.
+
+### 7. Trips during rush hours
+
+Study the factors associated with the timing of a trip with respect to rush hours.
+
+- Unit: **trip**; $Y$: binary **rush-hour indicator** built from `heuredep` and `mindep`. Unless you justify another definition, use the departure time in minutes since midnight and the windows **07:00-09:00** and **16:30-18:30**. 
+- $X$: `motifor` - trip purpose at origin; $Z$: `D12` - travelled distance (crow flies)
+- Focus $W$: influence of **household mobility equipment** on $Y$
+- Pitfalls: the departure time is rounded by respondents; define the time of a multi-stage trip using its **first** segment.
+
+### 8. Travelled distance
+
+Study the factors associated with the travelled distance.
+
+- Unit: **trip**; $Y$: `D13` (continuous, very skewed: log transformation or Gamma model)
+- $X$: `motifor` - trip purpose at origin; $Z$: `TYPE_HAB` - type of housing
+- Focus $W$: influence of **mobility accessibility and speed** on $Y$
+- Pitfalls: **circularity**: a speed computed as distance / duration contains $Y$. $W$ must therefore **not** be built from a speed using `D13`; use instead characteristics that do not depend on the distance of the trip itself (e.g. equipment, accessibility of the residence zone, average speed of the residence zone computed on *other* trips, access to public transport). Say how you avoided the circularity.
+
+
+
+***
+
+
+\newpage
+
+# Data operations
+
+Data operations are in two parts:
+
+1. **Part One** describes the preprocessing performed *before* the project to create the data frame. It is shown for transparency; *you cannot run these instructions* (the original file is not distributed).
+2. **Part Two** describes the processing *within* the project; *you have to run these operations* and eventually modify them.
+
+## Part One - Preprocessing (documentation only)
+
+The distributed data are an extract of **half of the households** of the survey, for confidentiality reasons.
+
+```{r initial_load, eval=FALSE}
+# NOT RUN - original file not distributed
+load("allgre_TR.RData")
+
+# Random draw of half of the HOUSEHOLDS (unique household ids, then filtering)
+set.seed(123)
+households <- unique(allgre$id_men)
+kept       <- sample(households, size = round(length(households) / 2))
+allgre.PB  <- allgre[allgre$id_men %in% kept, ]
+
+# Exclusion of columns that are not relevant for the project:
+# the columns are listed BY NAME (readable and robust to column re-ordering)
+cols_to_drop <- names(allgre)[c(5, 10, 47, 49, 51, 64, 81, 97, 98, 101,
+                                124:136, 139:148, 150, 151)]
+allgre.PB_V26 <- allgre.PB[, !(names(allgre.PB) %in% cols_to_drop)]
+save(allgre.PB_V26, file = "allgre.PB_V26.RData")
+```
+
+*Remark: the distributed sample was obtained with an earlier version of this script, which drew the households indirectly (averaging row-level random draws by household). The version above is the clean equivalent: it would give a different sample, so do not expect to reproduce the file from it.*
+
+## Part Two - Processing
+
+### Loading and checks
+
++ We load the database and run counts to check the loading.
++ We build `id_depl`, an identifier of each **trip**: the person identifier concatenated with the trip number. Since the database has one row per **route** (segment), `id_depl` is *not* unique per row (use `id_traj` for that).
+
+```{r load-data, eval=data_ok}
+load(data_file)
+cat("Rows:", nrow(allgre.PB_V26), " Columns:", ncol(allgre.PB_V26), "\n")
+table(allgre.PB_V26$nbd, useNA = "ifany")        # number of trips per person
+table(allgre.PB_V26$NO_DEPL, useNA = "ifany")    # trip number
+```
+
+
+
+The former rule `id_pers * 10 + NO_DEPL` generates **collisions** as soon as a person makes 10 trips or more. We use a text concatenation instead, and keep `NA` for persons without any trip.
+
+```{r id-depl, eval=data_ok}
+allgre.PB_V26$id_depl <- ifelse(is.na(allgre.PB_V26$NO_DEPL), NA_character_,
+                               paste(allgre.PB_V26$id_pers,
+                                     allgre.PB_V26$NO_DEPL, sep = "_"))
+
+# Checks on the identifiers
+tibble(
+  rows       = nrow(allgre.PB_V26),
+  households = n_distinct(allgre.PB_V26$id_men),
+  persons    = n_distinct(allgre.PB_V26$id_pers),
+  trips      = n_distinct(allgre.PB_V26$id_depl, na.rm = TRUE),
+  routes     = n_distinct(allgre.PB_V26$id_traj, na.rm = TRUE),
+  na_id_depl = sum(is.na(allgre.PB_V26$id_depl))
+)
+```
+
+### Are immobile persons in the database? {#check-immobile}
+
+
+Topic 3 defines immobility from `nbd = 0`. Check that persons with no trip exist and how they are coded.
+
+```{r check-immobile, eval=data_ok}
+pers <- allgre.PB_V26 %>% distinct(id_pers, .keep_all = TRUE)
+cat("Persons with nbd == 0 :", sum(pers$nbd == 0, na.rm = TRUE), "\n")
+cat("Persons with nbd NA   :", sum(is.na(pers$nbd)), "\n")
+cat("Persons with nbd == 0 and a trip id :",
+    sum(pers$nbd == 0 & !is.na(pers$id_depl), na.rm = TRUE), "\n")
+```
+
+
+### Analysis units {#analysis-units}
+
+The three analysis datasets (see the table of units above) are built below. Variables that are constant within a person (resp. a household) are kept as is. **Check, for the variables you use, that they are really constant at the level you chose**; trip-level variables must be aggregated with an explicit rule.
+
+```{r analysis-units, eval=data_ok}
+# One row per household
+allgreM <- allgre.PB_V26 %>% distinct(id_men, .keep_all = TRUE)
+
+# One row per person (immobile persons included, if present in the data)
+allgreI  <- allgre.PB_V26 %>% distinct(id_pers, .keep_all = TRUE)
+
+# One row per trip (first route of the trip): persons without trip are dropped
+allgreD  <- allgre.PB_V26 %>%
+  filter(!is.na(id_depl)) %>%
+  distinct(id_depl, .keep_all = TRUE)
+
+tibble(level = c("household", "individual", "trip"),
+       rows  = c(nrow(allgreM), nrow(allgreI), nrow(allgreD)))
+
+# Intermediate file reused by the next parts of the project
+save(allgreM, allgreI, allgreD, file = "allgre_3DF.RData")
+```
+
+
+
+### Description of the database content
+
+The table below lists the **names of all variables**. The complete description (labels, codes, modalities) is in the variables dictionary **`DICO_VAR_EMD_GRE2010_v22.xls`**. The table of variables used previously was built from column *positions*, which is fragile: it is replaced by the key variables table below, which checks that each name exists in the data.
+
+
+```{r var-names, eval=data_ok}
+Ncol <- 7
+nm   <- names(allgre.PB_V26)
+Nlin <- ceiling(length(nm) / Ncol)
+pad  <- Ncol * Nlin - length(nm)
+mat  <- matrix(c(nm, rep("", pad)), ncol = Ncol, byrow = TRUE)
+knitr::kable(mat, col.names = paste0("col", 1:Ncol),
+             caption = "Variable names in allgre.PB\\_V26")
+```
+
+#### Key variables
+
+```{r key-vars, eval=data_ok, echo=FALSE}
+key_vars <- tribble(
+  ~variable,      ~level,       ~description,
+  "id_men",       "household",  "Household identifier",
+  "id_pers",      "person",     "Person identifier",
+  "id_depl",      "trip",       "Trip identifier (created, see above)",
+  "id_traj",      "route",      "Route (segment) identifier",
+  "NO_DEPL",      "trip",       "Trip number of the person",
+  "nbd",          "person",     "Number of trips of the person",
+  "btt",          "person",     "Daily travel time (Travel Time Budget)",
+  "jourdepl",     "trip",       "Day of the trip",
+  "permis",       "person",     "Driving licence holder",
+  "age",          "person",     "Age",
+  "mode_V2", "trip",       "Transport mode, aggregated version",
+  "VP_DISPO",     "household",  "Number of private cars available in the household",
+  "taillemng",    "household",  "Household size",
+  "Permis_mng",   "household",  "At least one driving licence in the household",
+  "ENERGIE1",     "household",  "Fuel type of the 1st car of the household",
+  "TYPE_HAB",     "household",  "Type of residence of the household",
+  "freqtcu",      "person",     "Frequency of use of the urban public transport network",
+  "motifor",      "trip",       "Purpose at origin",
+  "heuredep",     "trip",       "Departure time (hour)",
+  "mindep",       "trip",       "Departure time (minute)",
+  "D12",          "trip",       "Travelled distance (crow flies)",
+  "D13",          "trip",       "Travelled distance"
+) %>%
+  mutate(in_data = variable %in% names(allgre.PB_V26),
+         level   = level)
+
+knitr::kable(key_vars, caption = "Key variables of the project")
+if (any(!key_vars$in_data))
+  warning("Variables not found: ",
+          paste(key_vars$variable[!key_vars$in_data], collapse = ", "))
+```
+
+
+
+
+
+## Data Base Structure 
+
+
+This is a so-called **hierarchical** database. It initially consists of 4 files:
+
+1. *Household* file
+2. *Person* file
+3. *Trip* file
+4. *Route* file
+
+In surveys, a trip is made of one or several routes (stages), for a given purpose. When a trip is made in several stages (e.g. bicycle from home to the station, train, then bicycle from the station to the workplace), it is represented by several rows for the same trip. In the same way, an individual can make several trips in a day, and a household can include several individuals.
+
+
+The database provided is the **finest** one: it describes the household, individual and trip information for each **route**. There are therefore as many rows as routes. The structure is managed by the identifiers:
+
+- `id_men`: unique household identifier
+- `id_pers`: unique person identifier
+- `id_depl`: unique trip identifier (to be created, see above)
+- `id_traj`: unique route identifier
+
+Most topics require working at the individual, household or trip level (see Section \ref{sec:method}): the database must be reduced accordingly.
+
+
+# Deliverables and evaluation {#sec:deliv}
+
+## Deliverables
+
+- A **PDF report** (10 pages maximum + appendices, see above).
+- The **Rmd source** and **all files needed to reproduce** the analysis (intermediate files, scripts), as one zip archive.
+- Everything uploaded on **Caseine** before the deadline: **`r duedate`, 11:59 p.m.** (the e-mail address iragael.joly@grenoble-inp.fr is used only if Caseine is unavailable).
+- A short **individual contribution table** (who did what) in an appendix, signed by all members.
+
+**Reproducibility is imperative**, both for data handling and for the report. State which packages must be installed, which intermediate files to run and in which order. Run `sessionInfo()` at the end of the report (see below). Using `renv` is encouraged.
+
+## Evaluation grid
+
+| Criterion | Weight |
+|:---------------------------------------------------------|-------:|
+| Dataset description, unit of analysis, weights, missing values | 10 % |
+| Summary statistics (univariate / bivariate), interpretation | 15 % |
+| Strategy, literature, justification of the methodological choices | 20 % |
+| Clustering and variable $W$ | 10 % |
+| Prediction (protocol, baseline, metrics, comparison) | 15 % |
+| Explanation and critical discussion | 15 % |
+| Reproducibility | 10 % |
+| Form (clarity, figures, writing, respect of the page limit) | 5 % |
+
+The group mark can be **modulated individually** according to the contribution table and to an oral questioning on the report.
+
+***
+
+# First class: reproducing this statement
+
++ Your first step in this project is to be able to **reproduce this statement in PDF format** by knitting the Rmd file. This implies:
+   * organizing your working directories (in your OS);
+   * organizing your files (in your OS) and reporting paths in the Rmd files;
+   * installing all needed R packages (in RStudio, specifically `knitr` and `tinytex`);
+   * exploring the Rmd file chunk by chunk to ensure everything is fine;
+   * knitting the Rmd to PDF and solving the bugs;
+   * enjoying your first reproducible PDF document.
+
+
+\newpage
+
+# References
+
+<div id="refs"></div>

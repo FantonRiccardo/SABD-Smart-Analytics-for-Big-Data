@@ -1,0 +1,65 @@
+---
+title: "SABD Project: Urban Mobility Analysis — Milestone M1"
+subtitle: "Research Note: Topic 1.2 — Daily Travel Times"
+author: "Pierre Escuret, Riccardo Fanton, Lilian Grasset (Group 1.2)"
+date: "October 20, 2026"
+geometry: "top=1.0cm, bottom=1.0cm, left=1.3cm, right=1.3cm"
+output:
+  pdf_document:
+    number_sections: false
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{microtype}
+  - \usepackage{enumitem}
+  - \setlist{noitemsep,topsep=1pt,parsep=0.5pt,partopsep=0pt,leftmargin=*}
+  - \usepackage{titlesec}
+  - \titlespacing*{\section}{0pt}{2.5pt}{1pt}
+  - \titlespacing*{\subsection}{0pt}{1.5pt}{0.5pt}
+  - \setlength{\parskip}{1.2pt}
+  - \setlength{\parindent}{0pt}
+  - \linespread{0.93}
+bibliography: ["Biblio/Project_biblio.bib"]
+biblio-style: apalike
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+\vspace{-0.8cm}
+\small
+
+# 1. Scientific Problem & Research Question
+This research investigates individual **Daily Travel Time** ($BTT$, *Budget Temps de Transport*) across the Grenoble metropolitan area using the 2010 Household Travel Survey (*EMD 2010*, Cerema standard). Grounded in Zahavi's conjecture [-@zahavi1980regularities] and subsequent empirical evaluations [@crozet2004budget; @joly2006loi; @mokhtarian2004ttb], we test whether travel expenditures exhibit behavioral invariance ("Marchetti constant" $\approx 1$ h/day) or are structurally governed by residential sorting and spatial accessibility. We examine how housing characteristics ($W$) shape extreme commuting ($btt > 120$ min) versus immobility.
+
+# 2. Unit of Analysis & Dataset Hierarchy
+* **Natural Unit:** The **individual** (`allgreI`, $N = 8{,}861$ unique individuals nested within $3{,}802$ households `id_men`). Among them, $7{,}425$ are mobile ($nbd > 0$) while $1{,}436$ are immobile ($nbd = 0$).
+* **Pseudo-Replication & Grouped Splitting:** Household members share vehicle resources and residential constraints. To eliminate data leakage and anticonservative inference: (i) the $80/20$ train/test split is strictly grouped by household (`id_men`) with `seed = 2026`; (ii) explanatory regressions employ cluster-robust standard errors (CRSE at `id_men` level) or mixed-effects models.
+
+# 3. Target Variable $Y$: Daily Travel Time (`btt`)
+* **Measurement & Distribution:** $Y = \text{btt}$ is the aggregate daily duration (minutes) of all trips performed by an individual. In the mobile sample, $\text{Median} = 65.0$ min, $\text{Mean} = 90.33$ min, $\text{IQR} = [39, 110]$ min, and $\text{Max} = 1{,}560$ min. It displays strong right-skewness and declared survey rounding spikes ($5, 10, 15, 30$ min).
+* **Immobility & Zero-Inflation:** Immobile individuals (`nbd == 0`) have `btt = NA` in raw records; we recode them to `btt_all = 0`. Because this zero-mass ($16.2\%$) represents structural non-travel rather than missingness, we adopt a two-tier strategy:
+  1. *Conditional Duration Model:* Estimation on active individuals ($btt > 0$) via $\log(btt)$ linear regression and Gamma GLM with log-link.
+  2. *Two-Part (Hurdle) Model:* Logistic regression for mobility participation ($\Pr(nbd > 0)$) coupled with a truncated Gamma GLM for $\mathbb{E}[btt \mid btt > 0]$.
+
+# 4. Imposed Variables ($X, Z$) & Focus Variable ($W$: Housing)
+* **$X$ (`jourdepl`):** Survey travel day (Monday–Friday). Controls for institutional intra-week rhythms (e.g. Wednesday school shifts in France, Friday early commuting). Formatted as a categorical factor at the individual level.
+* **$Z$ (`permis`):** Driver's license ($0 = \text{none}$, $1 = \text{full license}$, $2 = \text{accompanied driving}$). Strongly collinear with $age$ (structural zeros for minors under 18). We recode category $2$ into a dedicated factor level and test age-stratified interactions.
+* **Focus $W$ (Housing & Residential Environment):** A synthetic categorical indicator derived through unsupervised clustering (Gower distance + PAM / MCA followed by HCPC) fitted **exclusively on the training fold**.
+  * *Features:* Housing typology (`TYPE_HAB`: single-family isolated, terraced, small/large collective building); tenure (`TYPE_OCU`: owner, private tenant, social tenant); residential parking friction (`PBM_STAT`: recurring parking tension at domicile); transit proximity (`Gare2`, `Gare5`).
+  * *Zero Circularity:* $W$ relies strictly on exogenous domicile and built-environment attributes, rigorously excluding trip distances (`D12`, `D13`), speeds, or route modes.
+
+# 5. Methodological & Evaluation Roadmap
+* **Predictive Protocol:** Grouped 5-fold cross-validation on the train set ($80\%$). Baseline trivial model (sample mean/median) evaluated against Regularized Regression (Ridge/Lasso), Random Forest, and Gradient Boosting. Out-of-sample metrics: RMSE and MAE on both log-transformed and natural scales (minutes).
+* **Explanatory Protocol:** Econometric Gamma GLM (log-link) estimating marginal effects, odds ratios, and cluster-robust inference.
+
+\vspace{-0.2cm}
+# References
+\vspace{-0.3cm}
+\begingroup
+\footnotesize
+\setlength{\parindent}{-0.15in}
+\setlength{\leftskip}{0.15in}
+<div id="refs"></div>
+\endgroup

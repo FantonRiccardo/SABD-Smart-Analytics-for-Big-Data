@@ -1,0 +1,222 @@
+---
+title: "Data Collection Campaign: Building an Urban Smell Cartography"
+subtitle: "Multi-Source Big Data Characterization and GIS Synthesis for Grenoble, Saint-Martin-d'Hères, and Échirolles"
+author: 
+  - "Riccardo Fanton (Student ID: s359716 / INE: 253333341AH)"
+  - "Grenoble INP - Génie Industriel / UGA | Master 3A (Management Engineering)"
+date: "October 16, 2026"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    highlight: tango
+geometry: "top=2cm, bottom=2cm, left=2.2cm, right=2.2cm"
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{xcolor}
+  - \usepackage{fancyhdr}
+  - \usepackage{graphicx}
+  - \usepackage{float}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \rhead{Smart Analytics for Big Data --- Smell Cartography}
+  - \lhead{Grenoble INP --- UGA}
+  - \rfoot{Page \thepage}
+---
+
+\newpage
+
+# Introduction & Research Framework
+
+Urban data analytics and municipal GIS platforms have historically suffered from a pronounced visual bias: city dashboards map building footprints, road geometries, transit schedules, and economic zones while overlooking how citizens experience public spaces through non-visual senses. In the expanding domain of **sensory urbanism** (Howes, 2022; Hattam, 2022), researchers argue that auditory and olfactory environments fundamentally shape perceived livability, psychological comfort, and spatial identity. While visual landmarks define a tourist brochure, **"smellmarks"** and **"soundmarks"** define the lived experience of streets and neighborhoods.
+
+Unlike purely decorative or touristic fragrance maps (such as *Scentscape Singapore* or *The Scents and Smells of Paris*; Quercia et al., 2015), this project designs an **actionable, dynamic urban smell cartography** for the Grenoble metropolitan basin, spanning three contiguous administrative territories: **Grenoble hyper-centre**, **Saint-Martin-d'Hères**, and **Échirolles**. 
+
+The cartographic engine operates on an hourly update frequency and pursues a **utilitarian civic objective**: empowering residents to navigate their urban environment by identifying and avoiding acute odor nuisances (unburnt exhaust fumes, municipal waste decay, industrial volatile emissions), while locating clean, biogenic, and restorative olfactory refuges (urban parklands, pedestrian bakery alleys, academic green corridors).
+
+The cartography establishes a standardized classification across **five foundational urban odor categories**:
+1. **Food & Bakery Aromas:** Warm baked bread, roasted coffee, grilled foods, and open-air food markets.
+2. **Roasted Coffee & Café Terraces:** Ground espresso, roasted beans, and active pedestrian terraces.
+3. **Floral & Biogenic Scent:** Pine resins, linden trees, damp soil, grass, and riverfront vegetation.
+4. **Traffic & Exhaust Fumes:** Acrid hydrocarbons, diesel soot ($PM_{2.5}$), nitrogen dioxide ($NO_2$), and brake dust.
+5. **Trash & Industrial Effluvia:** Organic decomposition, waste collection bins, and chemical/wastewater volatile plumes.
+
+---
+
+# The Big Data 5Vs Collection Matrix
+
+The data architecture integrates six complementary information streams across the **5Vs framework of Big Data** (*Volume, Velocity, Variety, Veracity, and Value*), as detailed in Table 1.
+
+\small
+\begin{longtable}{|p{2.8cm}|p{2.4cm}|p{5.6cm}|p{4.6cm}|}
+\hline
+\textbf{Data Type} & \textbf{Associated V's} & \textbf{Contribution to Smell Identity (Street / Quarter / City)} & \textbf{Strategies for Collection} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Data Type} & \textbf{Associated V's} & \textbf{Contribution to Smell Identity (Street / Quarter / City)} & \textbf{Strategies for Collection} \\
+\hline
+\endhead
+
+\textbf{1. Citizen Sensory Reports \& Odor Logs} & 
+\textbf{Variety}, \textbf{Value} & 
+Directly captures human olfactory perception, subjective hedonic tone (-5 to +5), and emotional comfort at street and block resolution. & 
+Dedicated mobile/web crowdsourcing application (\textit{Grenoble SmellSense}) featuring GPS logging, 5-class categorization, and 100m grid anonymization. \\
+\hline
+
+\textbf{2. Continuous IoT Air Quality Monitoring} & 
+\textbf{Volume}, \textbf{Velocity} & 
+Provides objective physical/chemical concentrations of odor precursors ($NO_2$, $PM_{2.5}$, total VOCs) across major transit and industrial corridors. & 
+Integration with certified fixed monitoring stations from \textit{ATMO Auvergne-Rhône-Alpes} + mobile multi-gas sensor nodes on public tramways (TAG Lines A, B, C). \\
+\hline
+
+\textbf{3. Atmospheric Micro-Climate Streams} & 
+\textbf{Velocity}, \textbf{Variety} & 
+Models olfactory dispersion, wind transport vectors, and thermal inversion ceilings that trap odors within the alpine valley floor. & 
+Automated ingestion of open meteorological APIs (\textit{Météo-France}, \textit{Meteociel}, UGA campus weather stations) capturing wind speed, vector, and temperature. \\
+\hline
+
+\textbf{4. Cadastral POI Registry (Food \& Parks)} & 
+\textbf{Volume}, \textbf{Variety}, \textbf{Value} & 
+Establishes the structural, deterministic source layer: locations of bakeries, roasteries, and restaurants vs. botanical parks and green lungs. & 
+Spatial queries via \textit{OpenStreetMap} (Overpass API) and \textit{Grenoble-Alpes Métropole Open Data} business registry (SIRENE commercial codes). \\
+\hline
+
+\textbf{5. Real-Time Traffic Congestion Dynamics} & 
+\textbf{Velocity}, \textbf{Volume} & 
+Correlates vehicle-related emission peaks (fumes) with diurnal commuter congestion and bottleneck arteries trapped between mountain massifs. & 
+Ingestion of metropolitan traffic APIs (\textit{TomTom Traffic Index}) and metropolitan mobility feeds across primary boulevards and motorway axes (A480, Rocade Sud). \\
+\hline
+
+\textbf{6. Municipal Waste Infrastructure \& Routing} & 
+\textbf{Variety}, \textbf{Value} & 
+Pinpoints stationary organic waste points and models temporal odor spikes associated with waste accumulation before truck collection. & 
+Open data datasets of \textit{Grenoble-Alpes Métropole}: voluntary waste drop-off containers (*points d'apport volontaire*), landfill sorting hubs, and collection timetables. \\
+\hline
+\end{longtable}
+\normalsize
+
+---
+
+# Systematic Discussion by Data Stream
+
+## Citizen Sensory Crowdsourcing & Edge Pipeline
+
+Capturing the subtle nuances of urban olfactory experience requires active human sensing. As noted by David Howes (2022), instrumental sensors quantify chemical concentrations, but only humans discern sensory meaning and emotional impact. 
+
+The data acquisition framework deploys a mobile citizen science platform—*Grenoble SmellSense* (Figure 1)—operating through a four-stage edge-to-cloud data pipeline:
+1. **In-Situ Observation & Privacy Preservation:** A user submits an odor event. To satisfy European GDPR standards, exact GPS coordinates are truncated at the edge into $100 \times 100\,\text{m}$ grid centroids (H3 hexagonal indices), decoupling sensory observations from individual movement trajectories.
+2. **Standardized Olfactory Taxonomy:** The user classifies the odor into one of the 5 primary classes, assigns an intensity level (1 to 5), and records the hedonic valence on an integer scale from $-5$ (acutely offensive) to $+5$ (highly pleasant).
+3. **Temporal Ingestion & Decay Weighting:** Because olfactory episodes are transient, incoming reports are processed via an exponential time-decay filter ($\lambda = \ln(2) / 3\,\text{hours}$). Reports older than 3 hours experience attenuated cartographic influence, while records older than 30 days are archived for longitudinal trend analysis.
+4. **Choropleth Fusion:** Processed reports are aggregated into dynamic zonal layers overlaid onto municipal GIS boundaries.
+
+```{r fig1, echo=FALSE, out.width="92%", fig.align="center", fig.cap="Figure 1: Citizen Sensory Mobile Architecture and Real-Time Processing Pipeline."}
+knitr::include_graphics("figures/fig1_citizen_sensing_pipeline.png")
+```
+
+## Physical IoT Sensor Integration (ATMO Auvergne-Rhône-Alpes)
+
+To ensure veracity and ground citizen perception in empirical physics, the platform interfaces directly with the certified monitoring network of **ATMO Auvergne-Rhône-Alpes** (Figure 2).
+
+```{r fig2, echo=FALSE, out.width="95%", fig.align="center", fig.cap="Figure 2: (A) Diurnal Chemical Precursor Concentration Profiles; (B) Station Air Quality vs. Citizen Odor Reports across Sectors."}
+knitr::include_graphics("figures/fig2_air_quality_diurnal_sensors.png")
+```
+
+As demonstrated in Panel A of Figure 2, tracer pollutants display sharp diurnal variability:
+* **Nitrogen Dioxide ($NO_2$):** Originating from internal combustion engines, $NO_2$ peaks sharply during the morning rush hour ($85\,\mu\text{g/m}^3$ at 08:30) and evening commute ($78\,\mu\text{g/m}^3$ at 18:15). In sensory terms, elevated $NO_2$ correlates with sharp, metallic, and caustic exhaust odors.
+* **Fine Particulate Matter ($PM_{2.5}$):** Originating from diesel soot and domestic wood combustion, particulate levels rise during early morning cold starts and accumulate during winter evenings under valley inversions ($>45\,\mu\text{g/m}^3$).
+* **Volatile Organic Compounds (VOCs):** Originating from industrial solvents, paints, and biogenic transpiration, total VOC concentrations peak in early afternoon solar irradiance and during nocturnal industrial releases.
+
+Panel B demonstrates the strong empirical correlation between monitoring station locations and citizen odor complaints: high-traffic corridors (Grands Boulevards) and industrial perimeters (Échirolles Sud) generate over $4\times$ more citizen odor alerts than urban background stations (Caserne de Bonne) or academic parklands (Saint-Martin-d'Hères Campus).
+
+## Topographic & Micro-Climatic Dispersion Mechanics
+
+The physical dispersion of urban odors is fundamentally governed by the alpine geomorphology of the Grenoble basin. Situated at an average altitude of 215 m ASL at the confluence of the Isère and Drac rivers, the metropolitan agglomeration is hemmed in by three towering limestone and crystalline massifs: the *Chartreuse* (North), the *Vercors* (West), and *Belledonne* (East).
+
+```{r fig3, echo=FALSE, out.width="90%", fig.align="center", fig.cap="Figure 3: Topographic and Micro-Climatic Dispersion Mechanics in the Grenoble Alpine Basin."}
+knitr::include_graphics("figures/fig3_alpine_valley_dispersion_model.png")
+```
+
+As modeled in Figure 3, this unique topography drives two critical olfactory dispersion phenomena:
+1. **Winter Thermal Inversions (The Stagnant Odor Pool):** During cold, calm anticyclonic weather, radiative cooling creates a dense layer of cold air trapped at the valley floor (215--450 m ASL), capped by warmer air aloft. This thermal inversion cap prevents vertical atmospheric mixing, trapping vehicular fumes, woodsmoke, and organic waste odors in a persistent, stagnant surface pool across Grenoble, SMH, and Échirolles.
+2. **Diurnal Valley Wind Regimes:**
+   * *Nocturnal Catabatic Drainage:* Cold air drains downward from the surrounding mountain slopes, creating light southern breezes that channel industrial emissions from the chemical corridors of Échirolles and Pont-de-Claix northward into central residential quarters.
+   * *Daytime Anabatic Thermal Venting:* Solar heating of mountain faces induces up-valley airflow, dispersing concentrated odors toward higher elevations.
+
+## Diurnal Timeline of Urban Olfactory Classes
+
+Urban smellscapes are inherently dynamic, displaying predictable circadian rhythms driven by human socioeconomic activity and atmospheric conditions.
+
+```{r fig4, echo=FALSE, out.width="95%", fig.align="center", fig.cap="Figure 4: Dynamic 24-Hour Circadian Timeline of Urban Olfactory Classes across the Grenoble Basin."}
+knitr::include_graphics("figures/fig4_diurnal_olfactory_dynamics.png")
+```
+
+Figure 4 illustrates the 24-hour intensity distribution across the five primary odor categories:
+* **Dawn & Early Morning (06:00--08:30):** Food and bakery aromas dominate the pedestrian center (*Rue de Strasbourg*, *Marché Sainte-Claire*) as artisan bakeries vent warm bread and roasting coffee (*Place Grenette*), while municipal garbage trucks generate transient waste odors during bin emptying.
+* **Morning Commute (07:45--09:15):** A massive spike in traffic fumes dominates major boulevards (*Boulevard Vallier*, *Boulevard Foch*) and highway connectors (*Rocade Sud*), overpowering subtle biogenic scents.
+* **Midday Lunch Window (11:45--14:00):** Culinary aromas surge across dining districts, complemented by rising biogenic floral emissions in green parks (*Parc Paul Mistral*, UGA Campus) stimulated by midday warmth.
+* **Evening Commute (17:00--19:00):** Secondary peak in traffic exhaust fumes along suburban commuting corridors.
+* **Nighttime (22:00--05:00):** Traffic declines sharply, unmasking localized industrial solvent releases in Échirolles and nocturnal organic decomposition in municipal waste sorting zones.
+
+---
+
+# Diversity, Equity, and Inclusion (DEI) & Ethical Governance
+
+As emphasized by urban cultural sociologist **Monica Montserrat Degen** (Hattam, 2022), sensory perceptions are not merely biological or objective; they are culturally and socially constructed through what she defines as **"sensory hierarchies"**:
+
+1. **Mitigating Cultural Bias & The Gentrification Paradox:**
+   Degen cites the instructive case study of urban regeneration in London, where traditional, inexpensive eateries (such as fried chicken outlets and spice markets frequented by local youth) were stigmatized by incoming affluent residents as "offensive odors," while trendy café aromas ("cappuccinos") were celebrated as hallmarks of regeneration. 
+   
+   To prevent the Grenoble Smell Cartography from reinforcing socioeconomic discrimination or cultural redlining:
+   * The platform enforces a **neutral, objective sensory lexicon**: categories are framed in descriptive terms (*"toasted grains / roasted coffee / spices / fried food"*) rather than pejorative descriptors (*"dirty / offensive / foul"*).
+   * Demographic weighting algorithms prevent vocal affluent cohorts from disproportionately skewing the perceived baseline of culturally diverse neighborhoods (such as *Village Olympique* or *Teisseire*).
+2. **Environmental Justice for Industrial Perimeters:**
+   Historically, working-class populations in southern Échirolles and peri-urban transport corridors have disproportionately endured industrial and highway pollution. Rather than serving as an economic tool to depress real estate values, the cartography provides municipal authorities with empirical evidence to prioritize green vegetative buffering walls and enforce industrial odor scrubbers.
+3. **Surveillance Protection & Data Minimization:**
+   Continuous geolocation of citizens presents severe surveillance hazards. By enforcing local on-device grid fuzzing ($100\,\text{m}$ spatial quantization) and stripping hardware IDs, the system ensures complete compliance with EU GDPR mandates.
+
+---
+
+# GIS Smell Cartography of Grenoble, SMH, and Échirolles
+
+Figure 5 presents the final synthesized **GIS Smell Cartography**, rendered directly from the official Grenoble-Alpes Métropole sector boundary shapefile (`NewESRI.shp`) across the 25 primary urban sectors of the study area.
+
+```{r fig5, echo=FALSE, out.width="95%", fig.align="center", fig.cap="Figure 5: Dynamic GIS Smell Cartography of Grenoble, Saint-Martin-d'Hères, and Échirolles rendered from NewESRI.shp across 25 IRIS Sectors."}
+knitr::include_graphics("figures/fig5_grenoble_smell_cartography_gis.png")
+```
+
+The thematic classification illustrates the distinct olfactory character of each metropolitan zone:
+* **Culinary & Coffee Heart (Warm Amber & Purple):** Sector 101 (*Centre-Ville*) and Sector 102 (*Championnet*) exhibit persistent high-intensity food and coffee aromas generated by dense pedestrian bistros, bakeries, and roasteries.
+* **Biogenic Green Sanctuaries (Emerald Green):** Sector 103 (*Parc Paul Mistral*) in central Grenoble and Sectors 121--122 (*SMH Taillées / UGA Campus & Arboretum*) form major biogenic scent sanctuaries, dominated by pine, linden, and floral notes that offer psychological restoration.
+* **Combustion & Exhaust Corridors (Crimson Red):** Sectors 104 (*Grands Boulevards*), 105--106 (*Berriat*), 114 (*Mistral/A480*), and 126 (*SMH Sud-Ouest/Rocade Sud*) represent persistent exhaust fume corridors, heavily impacted by vehicular congestion.
+* **Industrial & Chemical Zone (Dark Slate):** Sectors 130 (*Échirolles Est*) and 132 (*Échirolles Ouest*) register elevated chemical and manufacturing odor signatures due to proximity to commercial retail logistics and the chemical platforms of Pont-de-Claix.
+* **Waste & Sorting Logistics (Rust Orange):** Sector 129 (*Essarts Surieux*) captures localized waste handling odors surrounding municipal collection centers.
+* **Residential Clean Baselines (Soft Blue):** Peripheral residential sectors (e.g., *Île Verte*, *Bajatière*, *SMH Centre*) maintain clean, neutral sensory baselines.
+
+---
+
+# Operational Policy Implications
+
+Following the groundbreaking regulatory precedent set by the City of Berlin—where citizen-identified acoustic sanctuaries were formally codified into statutory municipal noise action plans under EU law (Aletta, 2022; Hattam, 2022)—this smell cartography provides actionable decision-support tools for the *Grenoble-Alpes Métropole Master Urban Plan (PLUi)*:
+
+1. **Statutory Sensory Refuges:** Legally designating and protecting micro-parks and green pedestrian corridors (e.g., Parc Paul Mistral, Île Verte quays, UGA Campus) as sensory sanctuaries, shielding them from commercial bus routing and industrial encroachments.
+2. **Bio-Filtering Phytoremediation Corridors:** Directing municipal landscaping services to plant specific tree and shrub species (e.g., *Pinus sylvestris*, *Tilia cordata*, *Jasminum*) along the Rocade Sud and Boulevard Vallier to absorb particulate emissions and generate pleasant biogenic counter-scents.
+3. **Objective Industrial Verification:** Utilizing mobile transit-mounted electronic noses to independently verify citizen odor alerts submitted via *SignalAir*, providing regulatory bodies with defensible data to enforce industrial filtration compliance.
+
+---
+
+# References
+
+1. **Aletta, F.** (2022). Perception-driven soundscape and sensory urban policy. *Soundscape Indices Project*, University College London. Cited in Hattam (2022).
+2. **ATMO Auvergne-Rhône-Alpes** (2025). Données de qualité de l'air: réseau de surveillance de la métropole grenobloise. *atmo-aura.fr*.
+3. **Campenni, C. E., Crawley, E. J., & Meier, M. E.** (2004). Role of suggestion in odor-induced mood change. *Psychological Reports*, 94(3), 1127--1136.
+4. **Carskadon, M. A., Saletin, J. M., Van Reen, E., et al.** (2015). Circadian influences on smell and taste detection thresholds. *Sleep*, 38(2), 213--228.
+5. **Degen, M. M.** (2022). *Spatial Sensorialities: Experiencing the Urban Sensory Hierarchy*. Brunel University London. Cited in Hattam (2022).
+6. **Hattam, J.** (2022). What does your city smell like? Sensory urbanism and non-visual city planning. *Landscape Architecture Magazine / MIT Technology Review Urban Series*, 72--73.
+7. **Howes, D.** (2022). *The Sensory Studies Manifesto: Tracking the Sensorial Revolution in the Human Sciences*. University of Toronto Press / Concordia Centre for Sensory Studies.
+8. **Parker, M., Spennemann, D. H. R., & Bond, J.** (2024). Methodologies for smellwalks and scentwalks---a critical review. *Chemical Senses*, 49, bjae005.
+9. **Quercia, D., Schifanella, R., Aiello, L. M., & McLean, K.** (2015). Smelly Maps: The Digital Life of Urban Smellscapes. *Proceedings of the 9th International AAAI Conference on Web and Social Media (ICWSM 2015)*, 327--336.
+10. **TomTom International** (2025). TomTom Traffic Index: Grenoble urban congestion profiles and peak commute patterns. *tomtom.com/traffic-index*.

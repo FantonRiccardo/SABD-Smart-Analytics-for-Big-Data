@@ -8,18 +8,27 @@
 ---
 
 ## Panoramica dei Deliverable e Valutazioni
-
-Il corso è strutturato su **3 pilastri di valutazione**:
-
-1. 🏆 **Data Challenge (Competizione / Caso Industriale)**:
+ 
+ Il corso è valutato secondo la formula algebrica ufficiale:
+ 
+- $$N_1 = 0{,}40 \cdot E + 0{,}35 \cdot \left(\frac{R + D}{2}\right) + 0{,}25 \cdot \text{ICS}$$
+- $$N_2 = E_6 \quad \text{(Rattrapage al 100\%)}$$
+1. 📝 **$E$ (40%) — Examen Scritto Individuale (Prof. I. Joly)**:
+   - **Data**: **15 Dicembre** (09:00 – 10:30)
+2. 🚗 **$\frac{R+D}{2}$ (35%) — TP Projet Mobilité (Lavoro di Gruppo)**:
+   - **Gruppo Ufficiale**: **1.2 Daily Travel Times** (Pierre Escuret, Riccardo Fanton, Lilian Grasset)
+   - **Milestone M1 (20 Ottobre)**: Nota di 1 pagina completata (`M1_Topic_1_2_Daily_Travel_Times.pdf`)
+   - **Dizionario Dati**: `DICO_VAR_EMD_GRE2010_v23.xlsx` disponibile su Caseine
+   - **Prima Presentazione**: **1 Dicembre** (08:30 – 11:45)
+   - **Soutenance Finale ($D$)**: **20 Gennaio** (ore 08:15, come da portale Caseine; data indicativa di planning: 12 Gennaio)
+   - **Consegna Rapporto Finale ($R$)**: **28 Gennaio** (ore 23:59 su Caseine)
+3. 🏆 **$\text{ICS}$ (25%) — Data Challenge & Industrial Case Studies**:
    - **Introduzione**: 20 Ottobre
    - **Valutazione Finale / Defense**: **8 Dicembre** (09:00 – 12:15)
-2. 🚗 **TP Projet Mobilité (Progetto Applicato)**:
-   - **Prima Presentazione**: **1 Dicembre** (08:30 – 11:45)
-   - **Soutenance Finale (Discussione)**: **12 Gennaio** (08:00 – 13:00)
-   - **Consegna Rapporto Finale**: **28 Gennaio**
-3. 📝 **Examen Scritto (Prof. I. Joly)**:
-   - **Data**: **15 Dicembre** (09:00 – 10:30)
+4. 👃 **Esercitazioni Modulo Data Collection (Dra. G. Vargas Solar)**:
+   - **Assignment 2.2 (Exercise 2) Smell Cartography**: Consegna PDF di gruppo entro **Venerdì 16 Ottobre (fine giornata)** su Caseine [Task 83530](https://moodle.caseine.org/mod/assign/view.php?id=83530)
+   - **Assignment 2.3 (Exercise 3) Tabular Data Exploration**: Notebook Kaggle [HO-1](https://www.kaggle.com/code/gevargas/ho-1-data-exploration-quantitative-2024) su spesa pubblica UE istruzione
+   - **Assignment 2.4 (Exercise 4) Mobility Exploration**: Notebook Gist su dati EMD 2010 Grenoble
 
 ---
 

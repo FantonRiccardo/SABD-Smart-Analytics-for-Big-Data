@@ -1,0 +1,390 @@
+## Part Two - Data processing
+
+This part reduces the database to the **trip**, **person** and **household** levels, creates new variables, and explains how to aggregate information from a lower level to a higher one. Scripts use `tidyverse` functions only.
+
+
+## Vocabulary
+
+| Term | Identifier | Meaning |
+|:--------------|:-----------|:------------------------------------------------------|
+| Route | `id_traj` (`NO_TRAJ`) | One segment of a trip, with one mode. **One row of the database = one route.** |
+| Trip | `id_depl` (`NO_DEPL`) | Movement between two activities, made of one or several routes |
+| Person | `id_pers` (`NO_PERS`) | Surveyed member of a household |
+| Household | `id_men` | Group of persons |
+
+## Checking the structure of the database
+
+Rows are routes: variables of a person (such as `nbd`, the number of trips of the person) are **repeated on each row**. To count persons or trips, never count rows.
+
+```{r structure-check}
+tibble(rows       = nrow(allgre.PB_V26),
+       households = n_distinct(allgre.PB_V26$id_men),
+       persons    = n_distinct(allgre.PB_V26$id_pers),
+       routes     = n_distinct(allgre.PB_V26$id_traj))
+
+# Distribution of the number of trips PER PERSON (one value per person)
+allgre.PB_V26 %>% distinct(id_pers, nbd) %>% count(nbd) #%>% print(n = 30)
+```
+
+### Number of trips
+
+Analyzing the number of trips, you should check that 44 observations are: `nbd = 22`
+
+These are persons that declare 22 trips in their day. For one individual this value is repeated 22 times in the DF ! We deduce that only 2 persons have done 22 trips in their day...
+
+```{r echo=TRUE, eval=T}
+table(allgre.PB_V26$dispovp, useNA = "ifany")
+
+names(allgre.PB_V26)
+
+allgre.PB_V26 %>% select(dispovp, NO_MEN, NO_PERS, NO_DEPL, tir, VP_DISPO) -> DF
+addmargins(table(DF$dispovp, DF$VP_DISPO, useNA = "ifany"))
+
+
+```
+
+
+```{r echo=TRUE, eval=T}
+# or
+DF <- allgre.PB_V26 %>% dplyr::select(sexe, nbd) %>% table()
+kable(DF)  
+```
+
+`nbd` was determined counting the trips in the DF for each individual.  `NO_DEPL` is the number of trips determined by the survey institution.
+
+Studying the number of trips (`NO_DEPL`), we see that 2 trips are numbered 22.
+
+```{r echo=TRUE, eval=T}
+# Check of NO_DEPL - number of trips
+table(allgre.PB_V26$NO_DEPL, useNA = "ifany")
+```
+
+We can check that each trip (observation) is associated to an unique  `id`.
+
+We see that `r sum(allgre.PB_V26$NO_DEPL==0)` trips have no number. These are lines for individuals without any trips: immobile persons
+
+> A half empty line describe the individual but not the trip
+
+
+Identification key is created for each trip using individual ID and the trip number
+
+```{r echo=TRUE, eval=T}
+# Creation of new id_depl
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(id_depl = if_else(is.na(NO_DEPL), NA_character_,
+                           paste(id_pers, NO_DEPL, sep = "_")))
+table(is.na(allgre.PB_V26$id_depl))
+table(allgre.PB_V26$nbd)
+```
+
+
+
+## New Variables Definition
+
+### Immobil person
+
+`immobil = 1` if the person made **no** trip (`nbd = 0`), 0 otherwise.
+
+```{r immobil}
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(immobil = as.integer(nbd == 0))
+
+allgre.PB_V26 %>% distinct(id_pers, .keep_all = TRUE) %>%
+  count(immobil, useNA = "ifany")
+```
+
+### Driving licence
+
+`permis` is coded 0 = no, 1 = yes, 2 = accompanied driving (learner, usually under 18). We keep the original variable and add a labelled factor.
+
+```{r permis}
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(permis_cat = factor(permis, levels = c(0, 1, 2),
+                             labels = c("no licence", "licence", "accompanied driving")))
+
+allgre.PB_V26 %>% distinct(id_pers, .keep_all = TRUE) %>%
+  group_by(permis_cat) %>%
+  summarise(persons = n(), age_min = min(age, na.rm = TRUE),
+            age_median = median(age, na.rm = TRUE), .groups = "drop")
+```
+
+
+
+:::: {.blackbox data-latex=""}
+The modality 2 is neither "no licence" nor "licence". For topics using `permis` (1, 2, 6) you must **decide and justify** how it is treated (separate category, merged with 0, or excluded) and mention that it is strongly related to `age`.
+::::
+
+
+### Area numbers 
+
+Origin and destination areas are recoded by an **integer division** by 1000 (the former `round(zone/1000)` sent the codes from x500 to the next sector).
+
+```{r areas}
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(ORIG = zoneorig %/% 1000,
+         DEST = zonedest %/% 1000)
+
+head(allgre.PB_V26$ORIG); head(allgre.PB_V26$DEST)
+table(allgre.PB_V26$ORIG, useNA = "ifany")
+```
+
+
+*To check in the variables dictionary:* the coding of `zoneorig` / `zonedest` and the correspondence with the sector codes (`tir`, which is identical to `zoneres.y`).
+
+
+### Factors and recodings
+
+Qualitative variables are defined as **factors** with explicit labels. Two rules: **list the codes** (`levels =`) instead of relying on the sorted order of the codes present, and **look at the table before and after** each recoding.
+
+```{r factors-status}
+# Check the codes actually present, and compare them with the dictionary
+cat("OCCU1 codes found:", paste(sort(unique(allgre.PB_V26$OCCU1)), collapse = ", "), "\n")
+
+# Codes 1 to 9, in the order of the dictionary (TO CHECK)
+status_labels <- c("TRAVAIL A TEMPS PLEIN", "TRAVAIL A TEMPS PARTIEL", "FORMATION STAGE",
+                   "ETUDIANT", "SCOLAIRE", "CHOMEUR", "RETRAITE", "RESTE AU FOYER", "AUTRE")
+
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(statut_detail = factor(OCCU1, levels = 1:9, labels = status_labels),
+         statut2 = fct_collapse(statut_detail,
+                                ACTIF = c("TRAVAIL A TEMPS PLEIN", "TRAVAIL A TEMPS PARTIEL",
+                                          "FORMATION STAGE")))
+
+table(allgre.PB_V26$statut_detail, useNA = "ifany")
+table(allgre.PB_V26$statut2, useNA = "ifany")
+```
+
+```{r factors-csp}
+# Before recoding: is the code 9 already used?
+table(trunc(allgre.PB_V26$csp / 10), useNA = "ifany")
+
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(cspgroup = case_when(csp %in% c(81, 82) ~ 7,
+                              is.na(csp)         ~ 9,   # unknown (check that 9 is free)
+                              TRUE               ~ trunc(csp / 10)),
+         cspgroup = factor(cspgroup))
+
+table(allgre.PB_V26$cspgroup, useNA = "ifany")
+```
+
+The trip purposes (`motifor` at origin, `motifdes` at destination) are reduced to 10 groups by the function below. Immobile persons have no trip, hence **no purpose** (`NA`); a missing purpose for a mobile person goes to "AUTRES".
+
+```{r factors-purpose}
+reduce_purpose <- function(x) {
+  case_when(
+    x %in% c(1, 2)             ~ 1L,   # home & second residence
+    x %in% c(11, 12)           ~ 2L,   # work
+    x %in% c(21, 22, 26)       ~ 3L,   # primary school
+    x %in% c(23, 24, 27, 28)   ~ 4L,   # middle / high school
+    x %in% c(25, 29)           ~ 5L,   # university
+    x > 30 & x < 44            ~ 6L,   # shopping & services
+    x > 49 & x < 55            ~ 7L,   # leisure
+    x > 60 & x < 75            ~ 8L,   # escorting
+    x == 81                    ~ 10L,  # professional tour
+    x == 91 | is.na(x)         ~ 9L,   # other / missing
+    TRUE                       ~ NA_integer_   # code not covered: inspect!
+  )
+}
+
+purpose_labels <- c("DOMICILE", "TRAVAIL", "ECOLE PRIMAIRE", "C.E.S.-LYCEE", "UNIVERSITE",
+                    "ACHAT", "LOISIR", "ACCOMPAGNEMENT", "AUTRES", "Professionnel")
+
+allgre.PB_V26 <- allgre.PB_V26 %>%
+  mutate(mot_o_red = factor(if_else(nbd == 0, NA_integer_, reduce_purpose(motifor)),
+                            levels = 1:10, labels = purpose_labels),
+         mot_d_red = factor(if_else(nbd == 0, NA_integer_, reduce_purpose(motifdes)),
+                            levels = 1:10, labels = purpose_labels))
+
+table(allgre.PB_V26$mot_o_red, useNA = "always")
+# Codes of mobile persons that are NOT covered by the grouping
+table(allgre.PB_V26$motifor[is.na(allgre.PB_V26$mot_o_red) & allgre.PB_V26$nbd > 0], useNA = "ifany")
+```
+
+
+
+## Reduction to the trip level
+
+A trip is made of one or several routes. We count the routes of each trip and keep **one row per trip** (the first route). Persons without trip (immobile) are excluded from this table.
+
+```{r trips}
+allgreD <- allgre.PB_V26 %>%
+  filter(!is.na(id_depl)) %>%
+  group_by(id_depl) %>%
+  mutate(n_routes = max(NO_TRAJ, na.rm = TRUE)) %>%
+  ungroup() %>%
+  distinct(id_depl, .keep_all = TRUE)
+
+nrow(allgreD)
+table(allgreD$n_routes)
+```
+
+
+
+### Average distances per area
+
+Distances are averaged on **trips** (not on routes, which would count multi-route trips several times), by residence area.
+
+```{r distances}
+allgreD %>%
+  summarise(across(c(D12, D13), list(mean = ~ mean(.x, na.rm = TRUE),
+                                     n_na = ~ sum(is.na(.x)))))
+
+dist_by_zone <- allgreD %>%
+  group_by(zoneres.y) %>%
+  summarise(n_trips = n(),
+            across(c(D12, D13), ~ mean(.x, na.rm = TRUE), .names = "{.col}_mean"),
+            n_na_D12 = sum(is.na(D12)),
+            .groups = "drop")
+head(dist_by_zone)
+```
+
+
+> Averages by area are **not stored** in the data frames; the same computation is used in the GIS part.
+
+
+
+## Reduction to the person level
+
+Individual indicators computed from trips (sum of durations, number of trips) are calculated **in the trip table**, then joined to the person table. The person table is built from the **complete** base so that **immobile persons are kept**.
+
+```{r persons}
+# Function: names of the columns that do not vary within groups of rows
+constant_within <- function(df, id) {
+  n_id <- length(unique(df[[id]]))
+  names(df)[vapply(names(df),
+                   function(v) nrow(unique(df[, c(id, v)])) == n_id,
+                   logical(1))]
+}
+
+# 1. Indicators computed on trips
+trip_agg <- allgreD %>%
+  group_by(id_pers) %>%
+  summarise(btt_sum    = sum(duree, na.rm = TRUE),   # daily travel time, from declared durations
+            n_na_duree = sum(is.na(duree)),          # missing durations
+            nbd_chk    = n_distinct(NO_DEPL),        # number of trips counted here
+            D12_sum    = sum(D12, na.rm = TRUE),    # daily travel distance
+            .groups = "drop")
+
+# 2. Columns of the base that are constant within a person (= person & household variables)
+person_cols <- constant_within(allgre.PB_V26, "id_pers")
+
+# 3. One row per person, immobile included
+allgreI <- allgre.PB_V26 %>%
+  distinct(id_pers, .keep_all = TRUE) %>%
+  select(any_of(person_cols)) %>%
+  left_join(trip_agg, by = "id_pers") %>%
+  mutate(across(c(btt_sum, n_na_duree, nbd_chk), ~ replace_na(.x, 0)),
+         # daily travel time with 0 for immobile persons
+         btt_all = if_else(immobil == 1, 0, btt))
+
+nrow(allgreI); sum(allgreI$immobil == 1, na.rm = TRUE)
+```
+
+Consistency checks. `btt` (from the preprocessing, corrected for errors in declared times) and `btt_sum` (raw sum of declared durations) are expected to differ for some persons: **keep `btt`** for your analyses, and use `btt_sum` only to understand the differences.
+
+
+
+## Reduction to the household level
+
+Household size and household licence are computed from the **complete** person table (with immobile persons). The household licence is 1 if **at least one member has a full licence** (`permis == 1`); accompanied driving (2) does not count.
+
+```{r households}
+# Is the maximum person number equal to the number of persons ?
+allgreI %>% group_by(id_men) %>%
+  summarise(n = n(), max_no = max(NO_PERS), .groups = "drop") %>%
+  summarise(households_with_gap = sum(n != max_no))
+
+hh_agg <- allgreI %>%
+  group_by(id_men) %>%
+  summarise(taillemng  = n(),
+            Permis_mng = as.integer(any(permis == 1, na.rm = TRUE)),
+            n_licence  = sum(permis == 1, na.rm = TRUE),
+            n_mobile   = sum(immobil == 0, na.rm = TRUE),
+            .groups = "drop")
+
+# Household variables are added to the person table...
+allgreI <- allgreI %>% left_join(hh_agg, by = "id_men")
+
+# ... and the household table keeps only the columns constant within a household
+household_cols <- constant_within(allgreI, "id_men")
+allgreM <- allgreI %>%
+  distinct(id_men, .keep_all = TRUE) %>%
+  select(any_of(c(household_cols, "taillemng", "Permis_mng", "n_licence", "n_mobile")))
+
+addmargins(table(allgreM$taillemng))
+addmargins(table(allgreM$Permis_mng))
+```
+
+
+## External calculus
+
+### Modal share (per trip)
+
+```{r modal-share}
+allgreD %>% count(mode_V2) %>% mutate(share = round(100 * n / sum(n), 1))
+```
+
+
+### Trip duration
+
+```{r duration}
+summary(allgreD$duree)
+table(is.na(allgreD$duree))
+table(cut(allgreD$duree, breaks = c(0, seq(30, max(allgreD$duree, na.rm = TRUE) + 30, 30)),
+          include.lowest = TRUE), useNA = "always")
+```
+
+## Created variables
+
+```{r new-vars-table, echo=FALSE}
+new_vars <- tribble(
+  ~variable,       ~level,       ~definition,
+  "id_depl",       "trip",       "Trip key: person id, underscore, trip number (NA for immobile persons)",
+  "immobil",       "person",     "1 if the person made no trip (nbd = 0), else 0",
+  "permis_cat",    "person",     "Licence as factor: no licence / licence / accompanied driving",
+  "ORIG, DEST",    "trip",       "Origin / destination sector: zone code %/% 1000",
+  "statut_detail", "person",     "Occupation (OCCU1) with 9 labelled modalities",
+  "statut2",       "person",     "Occupation grouped (ACTIF = full-time, part-time, training)",
+  "cspgroup",      "person",     "Socio-professional group (csp / 10; 7 for pcs 81-82; 9 if missing)",
+  "mot_o_red",     "trip",       "Purpose at origin, 10 groups (NA for immobile persons)",
+  "mot_d_red",     "trip",       "Purpose at destination, 10 groups (NA for immobile persons)",
+  "n_routes",      "trip",       "Number of routes of the trip",
+  "btt_sum",       "person",     "Sum of declared trip durations (raw), 0 if no trip",
+  "nbd_chk",       "person",     "Number of trips recounted from the trip table",
+  "btt_all",       "person",     "btt, with 0 for immobile persons",
+  "taillemng",     "household",  "Number of persons in the household (complete person table)",
+  "Permis_mng",    "household",  "1 if at least one member has a licence (permis = 1)",
+  "n_licence",     "household",  "Number of members with licence (permis = 1)",
+  "n_mobile",      "household",  "Number of mobile members"
+)
+knitr::kable(new_vars, caption = "Variables created in this part")
+```
+
+
+
+
+
+## Saving the three data frames
+
+The three tables are saved in a single file, used by all the following parts of the project.
+
+```{r save-units}
+save(allgreD, allgreI, allgreM, file = "allgre_3DF.RData")
+tibble(table = c("allgreD (trips)", "allgreI (persons)", "allgreM (households)"),
+       rows  = c(nrow(allgreD), nrow(allgreI), nrow(allgreM)),
+       columns = c(ncol(allgreD), ncol(allgreI), ncol(allgreM)))
+```
+
+
+
+
+## **Your** data processing
+
+**You should start here.** Load the three data frames (they were just saved above):
+
+```{r load-units}
+load("allgre_3DF.RData")   # allgreD (trips), allgreI (persons), allgreM (households)
+```
+
+
+

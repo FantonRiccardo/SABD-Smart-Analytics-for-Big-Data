@@ -1,0 +1,319 @@
+---
+title: "Multiple Regression"
+subtitle: "The BigMart Inventory management exercise - SOLUTION"
+author: "I. Joly"
+date:  "`r Sys.Date()`"
+fontsize: 11pt
+output:  
+  html_document:
+    css: bigmart.css
+    includes:
+      in_header: hero-image.html
+    number_sections: true
+---
+
+
+
+```{r setup, include=FALSE, cache=FALSE}
+## Global options
+knitr::opts_chunk$set(               # On définit ici les comportements par défaut des capsules dans le document produit html
+               echo=T,        # pour afficher les lignes de code (FALSE pour les cacher ; mais elles seront executer)
+               eval=TRUE,     # pour executer les capsules de code
+	             message=FALSE, # pour que les messages de R ne soient pas affichés dans le doc html
+               warning=FALSE) # pour que les alertes de R ne soient pas affichés dans le doc html
+knitr::opts_knit$set(width=75)  
+options(max.print="75")       # pour définir le nombre d'éléments afficher par R
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+<!-- Enoncé -->
+
+# Bigmart Sales Data Set using machine learning for beginners
+
+Retail industry uses analytics to optimize business processes. Tasks like product placement, inventory management, customized offers, product bundling, etc. are being smartly handled using data science techniques. 
+
+
+```{r include=FALSE}
+DF <- read.csv(file="bigmart_data.csv", sep = ",", dec='.')
+hist(DF$Item_Outlet_Sales)
+
+nb_Prod <- length(unique(DF$Item_Identifier))
+nb_Outlet <- length(unique(DF$Outlet_Identifier))
+
+```
+
+## Variables description
+
++ `Item_Identifier` : Unique product ID
++ `Item_Fat_Content` : Whether the product is low fat or not
++ `Item_Type` : The category to which the product belongs
++ `Outlet_Identifier` : Unique store ID
++ `Outlet_Size` : The size of the store in terms of ground area covered
++ `Outlet_Location_Type` : The type of city in which the store is located
++ `Outlet_Type` : Whether the outlet is just a grocery store or some sort of supermarket
+
++ `Item_Weight` : Weight of product
++ `Item_Visibility` : The % of total display area of all products in a store allocated to the particular product
++ `Item_MRP` : Maximum Retail Price (list price) of the product
++ `Outlet_Establishment_Year` : The year in which store was established
++ `Item_Outlet_Sales`: Sales of the product in the particular store. This is the outcome variable to be predicted.
+
+
+## Problem: Predict the sales of a store
+
+
+The data are collection of `r dim(DF)[1]` sales data for `r nb_Prod` products across `r nb_Outlet` stores in different cities. 
+Also, certain attributes of each product and store have been defined. The aim is to build a predictive model and find out the sales of each product at a particular store.
+
+Using this model, we will try to understand the properties of products and stores which play a key role in increasing sales.
+
+## The Hypotheses
+
+Here we draw some hypotheses on the potential determinants of the products demand.
+
+*Store Level Hypotheses:*
+
++   **City type**: Stores located in `urban` or `Tier 1` cities should have higher sales because of the higher income levels of people there.
++   **Population Density**: Stores demand should be positively associated with population density.
++    **Store Capacity**: Stores capacity should act as an attracting factor and rises demand.
++    **Competitors**: Stores competitive environment should have negative effect on sales.
++    **Marketing**: Stores which have a good marketing division should have higher sales as it will be able to attract customers through the right offers and advertising.
++    **Location**: Stores located within popular marketplaces should have higher sales because of better access to customers.
++    **Customer Behavior**: Stores keeping the right set of products to meet the local needs of customers will have higher sales.
++    **Ambiance**: Stores which are well-maintained and managed by polite and humble people are expected to have higher footfall and thus higher sales.
+
+*Product Level Hypotheses:*
+
++    **Brand**: Branded products should have higher trust and then sales.
++    **Age of the product**: Time on the market should help positive reputation and image building.
++    **Packaging**: Good packaging can attract customers.
++    **Utility**: Higher quality products should have higher utility and sale.
++    **Display Area**: Products on bigger shelves in the store should sell more.
++    **Visibility in Store**: The location of product in a store will impact sales.
++    **Advertising**: Better advertising of products in the store will should higher sales in most cases.
++    **Promotional Offers**: Products accompanied with attractive offers and discounts will sell more.
+
+
+## Data exploration
+
+### First we search for missing values. 
+
+
+We found two variables with missing values – `Item_Weight` and `Outlet_Size.` Lets impute the former by the average weight of the particular item. 
+
+### Second we reduce item type (`Item_Type`) to 3 categories only: *Food, Drinks and Non-Consumables*
+
+The `Item_Type` variable has 16 categories which might prove to be very useful in analysis. So its a good idea to combine them. One way could be to  assign a new category to each.
+`Item_Identifier`, i.e. the unique ID of each item, it starts with either `FD`, `DR` or `NC`. It like being Food, Drinks and Non-Consumables. 
+ 
+### Third we correct some typos in `Item_Fat_Content`
+
+
+There are typos and difference in representation in categories of `Item_Fat_Content` variable.
+
+There were some non-consumables as well and a fat-content should not be specified for them.
+
+```{r}
+# Item_FAt_Content
+DF %>% select(Item_Fat_Content) %>% table
+DF <-  dplyr::mutate(DF, 
+              Item_Fat_Content = case_when(Item_Fat_Content %in% c("LF","low fat","Low Fat") ~ "Low Fat",
+                                           Item_Fat_Content %in% c("reg","Regular") ~ "Regular"))
+DF$Item_Fat_Content <- factor(DF$Item_Fat_Content)
+table(DF$Item_Fat_Content)
+# Item_Type
+table(DF$Item_Identifier)
+DF <- DF %>% mutate(DF, 
+              Item_Type2 = case_when( str_detect(Item_Identifier, "DR") ~ "Drink",
+                                       str_detect(Item_Identifier, "FD") ~ "Food",
+                                       str_detect(Item_Identifier, "NC") ~ "Non Consommable"))
+DF <- DF %>% separate(Item_Identifier, c("Item_Type2", "Item_Id"), sep = 2)
+table(DF$Item_Type, DF$Item_Type2 )
+
+## Counting the freq for each character var
+
+var_freq_plot_fn <- function(df){
+  purrr::map(df %>% select_if(is.character) %>% names, ~
+  df %>% 
+    count(.data[[.x]]) %>%
+    ggplot(aes(x = n, y = .data[[.x]], fill = .data[[.x]])) +
+    geom_col() +
+    theme(legend.position = "none"))
+}
+
+var_freq_plot_fn(DF)
+```
+
+
+```{r}
+## Counting NA for each var
+
+NA_count_fn <- function(df){ 
+  df %>% select(everything()) %>%  # replace to your needs
+  summarise_all(funs(sum(is.na(.)) / length(.)))
+}
+NA_count_fn(DF)
+
+# Average imputation for Missing `Item_Weight`
+DF <- DF %>% 
+  group_by(Item_Type2) %>% 
+  mutate(Av_weight = mean(Item_Weight, na.rm=T)) %>% 
+  ungroup() %>% 
+  mutate(Item_Weight2 = ifelse(is.na(Item_Weight),  Av_weight, Item_Weight))
+
+sum(is.na(DF$Item_Weight2))
+```
+# Data Formating
+
+## Categorical data
+
+```{r}
+DF$Item_Type2 <- factor(DF$Item_Type2)
+DF$Item_Fat_Content <- factor(DF$Item_Fat_Content)
+DF$Outlet_Establishment_Year <- factor(DF$Outlet_Establishment_Year)
+DF$Outlet_Size <- factor(DF$Outlet_Size)
+DF$Outlet_Location_Type <- factor(DF$Outlet_Location_Type)
+DF$Outlet_Type <- factor(DF$Outlet_Type)
+```
+
+
+# Regression analysis
+## Simple regression
+
+Let start with simple regression model.
+First we evaluate one variable impact on the sales. Justify your choice of explanatory variable and perform and discuss the regression.
+
+
+```{r}
+my.cor <- DF  %>% select_if(is.numeric) %>% select( -Item_Weight, -Av_weight) %>% cor
+corrplot::corrplot(my.cor)
+```
+
+
+```{r}
+Reg1 <- lm(data=DF, Item_Outlet_Sales ~ Item_MRP)
+summary(Reg1)
+```
+
+This regression shows significant correlation between sales and price (as expected). We can use these results as benchmark to evaluate the following regressions
+
+### Regression diagnostic
+
+```{r}
+sp <- ggplot(DF, aes(x=Item_MRP, y=Item_Outlet_Sales)) + 
+  geom_point(colour="grey60") +
+  stat_smooth(method=lm,  colour="black")
+sp
+```
+
+```{r}
+plot(DF$Item_Outlet_Sales ~ DF$Item_MRP)
+abline(Reg1, col='red')
+```
+
+
+
+```{r}
+plot(Reg1)
+```
+
+```{r}
+ggplot(DF,aes(Item_MRP, Item_Outlet_Sales)) +
+  geom_point() +
+  geom_smooth(method='lm'
+              #, se=FALSE
+              ) 
+```
+
+
+## Multiple regression
+
+
+### Regression with quantitative variables:
+
+```{r}
+library(ggforce)
+
+ggplot(DF, aes(x = .panel_x, y = .panel_y)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  ggforce::facet_matrix(vars(Item_Outlet_Sales , Item_MRP , Item_Visibility ,  Item_Weight2), layer.diag = 4)
+```
+
+```{r}
+Reg2 <- lm(data=DF, Item_Outlet_Sales ~ Item_MRP + Item_Visibility +  Item_Weight2)
+summary(Reg2)
+```
+
+
+### Searching for Outlet impact on sales
+
+Let discuss the regression of sales on establishment year, size and type of outlet. Comment regression results.
+
+```{r}
+Reg3 <- lm(data=DF, Item_Outlet_Sales ~ Outlet_Establishment_Year + Outlet_Size + Outlet_Type)
+summary(Reg3)
+```
+
+
+```{r}
+table(DF$Outlet_Size, DF$Outlet_Type)
+```
+
+### Mixing with Item variables
+
+```{r}
+Reg4 <- lm(data=DF, Item_Outlet_Sales ~ Item_Fat_Content + Item_Type2)
+summary(Reg4)
+```
+```{r}
+Reg4 <- lm(data=DF, Item_Outlet_Sales ~ Item_MRP * Item_Type2)
+summary(Reg4)
+```
+
+
+
+## Prediction
+
+Using the first regression model : `Reg1`: `Item_Outlet_Sales ~ Item_MRP` we can predict sales for new data: new values of `Item_MRP`
+
+```{r}
+Reg1 <- lm(data=DF, Item_Outlet_Sales ~ Item_MRP)
+summary(Reg1)
+```
+
+
+```{r}
+new.data <- data.frame(Item_MRP = c(mean(DF$Item_MRP), median(DF$Item_MRP)))
+#predict(Reg1 , new.data)
+new.data2 <- data.frame( Item_MRP =   seq(min((DF$Item_MRP), max(DF$Item_MRP))))
+predict(Reg1,  new.data2 ,interval = "prediction")
+newDF <- data.frame(Item_MRP = DF$Item_MRP)
+pred1 <- as.data.frame(predict(Reg1,  newDF, interval = "prediction"))
+names(pred1) <- c( "Item_Outlet_Sales", "lower", "upper")
+
+```
+
+### Make prediction for: an average product (average in terms of size, etc.) belonging to the type low fat.
+
+```{r eval=FALSE}
+# example that can be modified
+predict(lm(y ~ x), new, se.fit = TRUE)
+pred.w.plim <- predict(lm(y ~ x), new, interval = "prediction")
+pred.w.clim <- predict(lm(y ~ x), new, interval = "confidence")
+matplot(new$x, cbind(pred.w.clim, pred.w.plim[,-1]),
+        lty = c(1,2,2,3,3), type = "l", ylab = "predicted y")
+```
+
+
+```{r}
+ggplot(DF, aes(DF$Item_MRP, Item_Outlet_Sales)) +
+geom_point()+
+  facet_wrap(~ DF$Item_Type2)+ geom_line(data = pred1, lwd =2 , colour='red')
+
+```
+

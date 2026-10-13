@@ -1,0 +1,144 @@
+---
+title: "SABD Project: Urban Mobility Analysis"
+subtitle: "Part 2 - Data Handling with R and GIS"
+author: "I. Joly, G. Vargas"
+date: "Academic year 2026-2027"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+header-includes:
+  - \renewcommand{\contentsname}{Table of Contents}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{tcolorbox}
+  - \newtcolorbox{blackbox}{colback=black, colframe=orange, coltext=white, boxsep=5pt, arc=4pt}
+link-citations: yes
+biblio-style: apalike
+bibliography: ["biblio/Project_biblio.bib"]
+nocite: |
+  @xie2015, @Chang2013, @xie2016, @Munzner2015, @harrell2013regression
+---
+
+<!-- Installation instructions (not displayed in the PDF)
+  - This Rmd file is in the main project folder.
+  - Required sub-folder: "biblio" containing "Project_biblio.bib".
+  - Data file "allgre.PB_V26.RData" must be in the main folder.
+  - The FOND_MAP folder contains the NewESRI.* files (useful to test the GIS representation).
+  - If the data file is missing, the document still knits: data chunks are skipped
+    and a warning is displayed (see chunk "setup").
+-->
+
+```{r definitions, echo=FALSE, results='hide'}
+# TODO (teachers): check the dates every year
+duedate        <- "28/01/2027"   # final deadline (Caseine), 11:59 p.m.
+academic_year  <- "2026-2027"
+SEED           <- 2026           # common seed for ALL groups (splits, folds, clustering)
+# In the Part2_GIS.Rmd file you will find the  Parameter map_draw  to turn TRUE to draw maps (or FALSE)
+
+## Parameter to draw the maps (TRUE / FALSE); also works when chunks are run by hand
+map_draw <- if (exists("params")) isTRUE(params$map_draw) else TRUE
+
+## Packages for maps (only if maps are requested)
+## Missing packages are installed automatically (internet connection required).
+install_if_missing <- function(pkgs) {
+  miss <- setdiff(pkgs, rownames(installed.packages()))
+  if (length(miss) > 0) install.packages(miss)
+  invisible(miss)
+}
+if (map_draw) install_if_missing(c("sf", "RColorBrewer"))
+```
+
+
+```{r setup, include=FALSE, cache=FALSE}
+## ---- Packages -------------------------------------------------------------
+## Missing packages are installed automatically (internet connection required).
+pkgs <- c("tidyverse", "knitr", "skimr", "tinytex")
+missing_pkgs <- setdiff(pkgs, rownames(installed.packages()))
+if (length(missing_pkgs) > 0) install.packages(missing_pkgs)
+
+library(tidyverse)
+library(knitr)
+library(skimr)
+
+## ---- Global chunk options -------------------------------------------------
+knitr::opts_chunk$set(
+  echo    = TRUE,    # display the code in the document
+  eval    = TRUE,    # chunks are run, unless eval=FALSE is set explicitly
+  message = FALSE,   # hide R messages
+  warning = FALSE    # hide R warnings
+)
+knitr::opts_knit$set(width = 75)
+options(max.print = 75)
+
+## ---- Data availability ----------------------------------------------------
+data_file <- "allgre.PB_V26.RData"
+data_ok   <- file.exists(data_file)
+if (!data_ok) {
+  warning("File '", data_file, "' not found in ", getwd(),
+          ": data chunks are skipped.")
+}
+```
+
+
+```{r data-missing-note, echo=FALSE, results='asis', eval=!data_ok}
+cat("\\begin{center}\\textbf{WARNING: the file allgre.PB\\_V26.RData was not found. ",
+    "Code chunks relying on the data were skipped.}\\end{center}")
+```
+
+\newpage
+# Statement
+
+## Objectives of the Part 2
+
+Part 1 gave the framework of the project (topics, unit of analysis, evaluation protocol). Part 2 guides you through the **data handling**:
+
+- load the survey data and **check the structure** (one row per route, immobile persons, identifiers);
+- **create and modify variables** with R, and with MongoDB;
+- reduce the database to the **trip**, **person** and **household** levels (`allgreD`, `allgreI`, `allgreM`);
+- compute **indicators by area** and draw **maps** of the Grenoble area (average daily travel time, number of trips, share of immobile persons).
+
+You will then continue with the data handling for **your own topic**.
+
+## Loading the data
+
+First lets load the data
+
+```{r eval=TRUE}
+load("allgre.PB_V26.RData")
+load("allgre_3DF.RData")
+```
+
+<!-- Variable handling with R   -->
+```{r eval=TRUE, child='Part2_Variables_V26.Rmd'}
+```
+
+\newpage
+
+<!---   You will find in this child Rmd document the parameter: map_draw to turn TRUE or FALSE -->
+
+<!-- GIS Variable handling with R   -->
+```{r eval=TRUE, child='Part2_GIS_2026.Rmd'}
+```
+
+
+
+
+
+\newpage
+
+# References
+
+<div id="refs"></div>
+
+- Spatial data with `sf`: <https://r-spatial.github.io/sf/>
+
+
+## Sources
+
+\newpage
+
+# Appendix
+
+Here you can add your material

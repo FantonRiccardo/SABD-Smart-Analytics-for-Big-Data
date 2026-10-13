@@ -1,0 +1,186 @@
+
+:::: {.blackbox data-latex=""}
+In this part, we work with geographical data to produce maps
+
+Instructions in chunks transform the data and perform some calculus for GIS maps, they should be reviewed in Mongo
+
+Note that the functions for map creation maybe time and resource consuming ! That is why the chunk are `eval=FALSE`: you will have to turn them on if you want to draw the map.
+
+::::
+
+
+
+
+```{r}
+#Parameter to turn TRUE to draw maps (or FALSE)
+map_draw <- TRUE
+```
+  
+  
+# GIS Part
+
+```{r}
+# install.packages("sf")
+# install.packages("terra")
+# install.packages("spData")
+# install.packages("spDataLarge", repos = "https://nowosad.r-universe.dev")
+
+library(sf) 
+library(cartography)
+library(terra)  
+library(spData)        # load geographic data
+#library(spDataLarge) 
+library(RColorBrewer)
+newESRI <- st_read("FOND_MAP/newESRI.shp")
+#st_read("G:/Ira_Lessons_with_Rmd/2021_SABD_SmartAnalytics/2022_TP_EMD/FILES_OK/FOND_MAP/newESRI.shp")
+
+choroLayer(
+  x = newESRI, var = "cod_sectir", 
+  legend.horiz = FALSE, 
+  legend.pos = "topright",
+  legend.title.txt = "My first map : cod_sectir",
+  legend.values.rnd = -2
+)
+```
+
+
+
+
+# Map and Calculus of area indicators: CARTE NBD BTT
+
+:::: {.blackbox data-latex=""}
+Here 
+\begin{itemize}
+\item Calculation by  zone: average and median of the daily travel time on individuals in the area and the number of trips and total number of individuals in the area
+\item Reduction of the DF to lighten the execution
+\item Merging of the DF with the GIS DF (which contains points coordinates and polygons)
+\end{itemize}
+::::
+  
+```{r,  results='hide', message=FALSE, eval= map_draw}
+
+DF <- allgreI[, c("nbd", "btt", "tir", "zoneres.y", "id_pers","D12_sum")]
+# Calcul base individus des indicateurs individuels
+DF_Indiv <- na.omit(DF)
+addmargins(table(allgreI$zoneres.y))
+
+DF_Indiv$BTT_moy <- ave(DF_Indiv$btt,DF_Indiv$tir, FUN = mean)
+DF_Indiv$BTT_med <- ave(na.omit(DF_Indiv$btt),DF_Indiv$tir, FUN = median)
+DF_Indiv$nbd_med <- ave(DF_Indiv$nbd,DF_Indiv$tir, FUN = median)
+DF_Indiv$nbd_moy <- ave(DF_Indiv$nbd,DF_Indiv$tir, FUN = mean)
+DF_Indiv$Maxind <- ave(DF_Indiv$id_pers,DF_Indiv$tir, FUN = max)
+DF_Indiv$TD12_moy <- ave(DF_Indiv$D12_sum,DF_Indiv$tir, FUN = mean)
+DF_Indiv$TD12_med <- ave(na.omit(DF_Indiv$D12_sum),DF_Indiv$tir, FUN = median)
+
+# Réduction à la base Zone (avec le max(ind) par TIR)
+DF_Zone <- subset(DF_Indiv, DF_Indiv$id_pers == DF_Indiv$Maxind, select =c(zoneres.y,BTT_med, BTT_moy, nbd_moy, nbd_med,tir, TD12_med, TD12_moy))
+``` 
+
+### Merging with newESRI and data
+
+```{r eval=map_draw}
+# library(sp) # the trick is that this package must be loaded!
+# MERGING with option duplicateGEOM=T to get as many polygons as the number of observationsin the data
+DF_Zone$cod_sectir <- DF_Zone$tir
+newESRI_DF <- merge(newESRI, DF_Zone, by = "cod_sectir", duplicateGeoms = TRUE)
+```
+
+### Projecting your geographic coordinates to the equirectangular projection
+
+After merging the data and the map, geographic coordinates have to be projected.
+
+https://r-spatial.org/r/2020/06/17/s2.html
+
+
+```{r, eval=map_draw}
+newESRI_DF = st_transform(newESRI_DF, "+proj=eqc")
+```
+
+
+
+
+# Colored mapping 
+```{r,  message=FALSE, eval=map_draw}
+choroLayer(spdf = newESRI_DF, var = "nbd_moy")
+title("Mapping of the area number - not really useful")
+
+table(newESRI_DF$tir)
+```
+
+# Map with labels 
+
+It may need to install `lwgeom`
+
+```{r eval=map_draw}
+
+choroLayer(spdf = newESRI_DF,var = "tir")
+# Label plot of the Mean
+labelLayer(spdf = newESRI_DF, txt = "tir", col = "#690409", cex = 0.9, font = 2)
+```
+
+
+
+# Complete map of daily travel times
+
+The script may need to be run out of  MARKDOWN
+
+```{r, echo=TRUE, eval=map_draw}
+Nclasse <- 5
+########## Carte colorée
+choroLayer(spdf = newESRI_DF, 
+           #df = DF_Zone,
+           spdfid = "cod_sectir", # id in map data
+           dfid = "tir",  # id in dataframe
+           var = "BTT_moy", 
+           nclass = Nclasse,
+           col = rev(brewer.pal(n = Nclasse, "RdYlBu")),
+           legend.pos = "right", legend.frame = TRUE,
+           legend.title.txt = "BTT moyens par zone")
+########### Ajout de label : nbd par zone
+# Label creation 
+newESRI_DF$lab <- paste(round(newESRI_DF$nbd_moy,1), sep ="")
+# Label plot of the Mean
+labelLayer(spdf = newESRI_DF,  txt = "lab", col = "#690409", cex = 0.9, font = 2)
+####### Ajout d'éléments de présentations : Layout plot
+layoutLayer(title = "BTT moyens par zone",
+            sources = "EMD Grenoble 2010",
+            author = "I. Joly",
+            scale = 0,
+            north = T,
+            frame = TRUE,
+            col = "black",
+            coltitle = "white")
+```
+
+```{r}
+
+Nclasse <- 5
+########## Carte colorée
+choroLayer(spdf = newESRI_DF, 
+           #df = DF_Zone,
+           spdfid = "cod_sectir", # id in map data
+           dfid = "tir",  # id in dataframe
+           var = "TD12_moy", 
+           nclass = Nclasse,
+           col = rev(brewer.pal(n = Nclasse, "RdYlBu")),
+           legend.pos = "right", legend.frame = TRUE,
+           legend.title.txt = "BTT moyens par zone")
+########### Ajout de label : nbd par zone
+# Label creation 
+newESRI_DF$lab <- paste(round(newESRI_DF$BTT_moy,1), sep ="")
+# Label plot of the Mean
+labelLayer(spdf = newESRI_DF,  txt = "lab", col = "#690409", cex = 0.9, font = 2)
+####### Ajout d'éléments de présentations : Layout plot
+layoutLayer(title = "Distances moyennes et btt moyen par zone",
+            sources = "EMD Grenoble 2010",
+            author = "I. Joly",
+            scale = 0,
+            north = T,
+            frame = TRUE,
+            col = "black",
+            coltitle = "white")
+```
+
+
+\newpage
+

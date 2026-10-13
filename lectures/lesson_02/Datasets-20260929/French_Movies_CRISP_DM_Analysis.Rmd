@@ -38,23 +38,22 @@ The goal of this document is **methodological and programmatic mastery**: learni
 
 > **"How do capital allocation (budget) and operational length (duration) influence the box-office profitability of French films, and how can studio executives set empirical budget boundaries to prevent catastrophic box-office flops?"**
 
-* **Primary Client**: Film Production Executives & Financiers (*Gaumont, Pathé, Studiocanal*).
-* **Secondary Stakeholder**: Public Cultural Grant Funders (*CNC – Centre National du Cinéma et de l'Image Animée*).
+- **Primary Client**: Film Production Executives & Financiers (*Gaumont, Pathé, Studiocanal*).
+- **Secondary Stakeholder**: Public Cultural Grant Funders (*CNC – Centre National du Cinéma et de l'Image Animée*).
 
 ## 3. Scientific Question (Econometric Perspective)
 
-We test the structural relationship between financial returns ($\text{Profit}$) and pre-production predictors:
-$$\text{profit}_i = \alpha + \beta_1 \cdot \text{budget}_i + \beta_2 \cdot \text{duration}_i + \varepsilon_i$$
+We test the structural relationship between financial returns ($\text{Profit}$) and pre-production predictors: $$\text{profit}_i = \alpha + \beta_1 \cdot \text{budget}_i + \beta_2 \cdot \text{duration}_i + \varepsilon_i$$
 
-* **Hypothesis 1 ($H_1$)**: Does increasing production budget increase net profit ($\beta_1 > 0$), or do higher budgets experience negative marginal returns ($\beta_1 < 0$)?
-* **Hypothesis 2 ($H_2$)**: Does film runtime significantly alter profitability ($\beta_2 \neq 0$), or is runtime neutral?
-* **Omitted Variable / Entanglement Question**: How does controlling for duration alter the estimated effect of budget on profit?
+- **Hypothesis 1 (**$H_1$): Does increasing production budget increase net profit ($\beta_1 > 0$), or do higher budgets experience negative marginal returns ($\beta_1 < 0$)?
+- **Hypothesis 2 (**$H_2$): Does film runtime significantly alter profitability ($\beta_2 \neq 0$), or is runtime neutral?
+- **Omitted Variable / Entanglement Question**: How does controlling for duration alter the estimated effect of budget on profit?
 
----
+------------------------------------------------------------------------
 
 # CRISP-DM Framework: Step-by-Step Architecture
 
-```
+```         
 +-----------------------------------------------------------------------------------------+
 |                                    CRISP-DM LIFECYCLE                                   |
 +-----------------------------------------------------------------------------------------+
@@ -67,7 +66,7 @@ $$\text{profit}_i = \alpha + \beta_1 \cdot \text{budget}_i + \beta_2 \cdot \text
 +-----------------------------------------------------------------------------------------+
 ```
 
----
+------------------------------------------------------------------------
 
 # Phase 2 & 3: Step-by-Step Data Preparation (How to Do It Yourself)
 
@@ -150,7 +149,7 @@ kable(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 # Phase 4: Exploratory Data Analysis & Custom R Functions
 
@@ -210,25 +209,19 @@ ggplot(french_clean, aes(x = profit_M)) +
   theme_minimal(base_size = 12)
 ```
 
----
+------------------------------------------------------------------------
 
 # Phase 5: Econometric Modeling — Matrix Calculations vs. Native `lm()`
 
 To understand how R executes Ordinary Least Squares (OLS) under the hood, we first compute the OLS estimator **manually using matrix algebra** and then compare it with R's built-in `lm()` function.
 
 ## Theoretical Matrix Formulation
-Given the linear model:
-$$\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$$
 
-The closed-form OLS solutions are:
-1. **Coefficients Vector**: $\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}$
-2. **Residuals**: $\hat{\boldsymbol{\varepsilon}} = \mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}$
-3. **Residual Variance**: $\hat{\sigma}^2 = \frac{\hat{\boldsymbol{\varepsilon}}^T \hat{\boldsymbol{\varepsilon}}}{n - p - 1}$
-4. **Variance-Covariance Matrix**: $\widehat{\text{Var}}(\hat{\boldsymbol{\beta}}) = \hat{\sigma}^2 (\mathbf{X}^T \mathbf{X})^{-1}$
-5. **Standard Errors**: $\text{SE}(\hat{\beta}_j) = \sqrt{\text{diag}(\widehat{\text{Var}}(\hat{\boldsymbol{\beta}}))}$
-6. **$t$-statistics & $p$-values**: $t_j = \frac{\hat{\beta}_j}{\text{SE}(\hat{\beta}_j)}$, $p_j = 2 \cdot (1 - F_t(|t_j|, \text{df} = n - p - 1))$
+Given the linear model: $$\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$$
 
----
+The closed-form OLS solutions are: 1. **Coefficients Vector**: $\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}$ 2. **Residuals**: $\hat{\boldsymbol{\varepsilon}} = \mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}$ 3. **Residual Variance**: $\hat{\sigma}^2 = \frac{\hat{\boldsymbol{\varepsilon}}^T \hat{\boldsymbol{\varepsilon}}}{n - p - 1}$ 4. **Variance-Covariance Matrix**: $\widehat{\text{Var}}(\hat{\boldsymbol{\beta}}) = \hat{\sigma}^2 (\mathbf{X}^T \mathbf{X})^{-1}$ 5. **Standard Errors**: $\text{SE}(\hat{\beta}_j) = \sqrt{\text{diag}(\widehat{\text{Var}}(\hat{\boldsymbol{\beta}}))}$ 6. $t$-statistics & $p$-values: $t_j = \frac{\hat{\beta}_j}{\text{SE}(\hat{\beta}_j)}$, $p_j = 2 \cdot (1 - F_t(|t_j|, \text{df} = n - p - 1))$
+
+------------------------------------------------------------------------
 
 ## Step 5.1: Manual Matrix OLS in R (Full Model 3)
 
@@ -284,13 +277,13 @@ summary(model_3)
 
 Notice that our **manual matrix calculations** match R's `summary(lm())` output down to the exact decimal!
 
----
+------------------------------------------------------------------------
 
 # Phase 6: Deconstructing OLS Entanglement Step-by-Step
 
 To see why multivariate regression is essential, we trace the step-by-step evolution from single to multiple predictors:
 
----
+------------------------------------------------------------------------
 
 ## Model 1: Single-Variable OLS ($\text{Profit} \sim \text{Budget}$)
 
@@ -313,7 +306,7 @@ ggplot(french_clean, aes(x = budget_M, y = profit_M)) +
   theme_minimal(base_size = 12)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Model 2: Single-Variable OLS ($\text{Profit} \sim \text{Duration}$)
 
@@ -336,23 +329,23 @@ ggplot(french_clean, aes(x = duration, y = profit_M)) +
   theme_minimal(base_size = 12)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Correlation & Frisch-Waugh-Lovell (FWL) Entanglement Proof
 
-Why did the duration coefficient change from **$+0.075$** in Model 2 to **$-0.015$** in Model 3?
+Why did the duration coefficient change from $+0.075$ in Model 2 to $-0.015$ in Model 3?
 
-1. **Correlation between predictors**:
+1.  **Correlation between predictors**:
+
 ```{r fwl-correlation}
 cor_pred <- cor(french_clean$budget_M, french_clean$duration)
 cat("Correlation between Budget and Duration: r =", round(cor_pred, 3), "\n")
 ```
 
-2. **Frisch-Waugh-Lovell Theorem in R**:
-   To isolate the true partial effect of duration on profit after removing the effect of budget:
-   - Step A: Regress $\text{profit}$ on $\text{budget}$ and extract residuals ($\tilde{y}$).
-   - Step B: Regress $\text{duration}$ on $\text{budget}$ and extract residuals ($\tilde{x}_2$).
-   - Step C: Regress $\tilde{y}$ on $\tilde{x}_2$.
+2.  **Frisch-Waugh-Lovell Theorem in R**: To isolate the true partial effect of duration on profit after removing the effect of budget:
+    - Step A: Regress $\text{profit}$ on $\text{budget}$ and extract residuals ($\tilde{y}$).
+    - Step B: Regress $\text{duration}$ on $\text{budget}$ and extract residuals ($\tilde{x}_2$).
+    - Step C: Regress $\tilde{y}$ on $\tilde{x}_2$.
 
 ```{r fwl-theorem}
 # Step A: Partial out Budget from Profit
@@ -369,7 +362,7 @@ cat("Model 3 Duration Slope (Native OLS)  :", coef(model_3)["duration"], "\n")
 
 This proves that **Model 2's positive duration effect was purely an artifact of omitted variable bias**: longer movies simply had higher budgets. Once budget is partialled out, the isolated effect of duration is slightly negative!
 
----
+------------------------------------------------------------------------
 
 # Model Comparison & Quality Diagnostics
 
@@ -399,13 +392,10 @@ plot(model_3)
 par(mfrow = c(1, 1))
 ```
 
----
+------------------------------------------------------------------------
 
 # Actionable Managerial Recommendations
 
-1. **Hard Budget Ceilings**:
-   French productions exceeding $\$30\text{M}$ budget exhibit severe downside risk ($\beta_1 \approx -0.92, p < 0.001$). Studio financiers should require pre-sold international distribution rights before greenlighting large budgets.
-2. **Standardize Runtime**:
-   Duration has no significant positive linear return ($R^2 < 0.01$). Standard runtimes ($90\text{--}110$ minutes) minimize shooting costs without harming box-office appeal.
-3. **Reproducible Dynamic Governance**:
-   Every number in this report is generated dynamically by R. Running `rmarkdown::render()` guarantees zero manual calculation errors when new data arrives.
+1.  **Hard Budget Ceilings**: French productions exceeding $\$30\text{M}$ budget exhibit severe downside risk ($\beta_1 \approx -0.92, p < 0.001$). Studio financiers should require pre-sold international distribution rights before greenlighting large budgets.
+2.  **Standardize Runtime**: Duration has no significant positive linear return ($R^2 < 0.01$). Standard runtimes ($90\text{--}110$ minutes) minimize shooting costs without harming box-office appeal.
+3.  **Reproducible Dynamic Governance**: Every number in this report is generated dynamically by R. Running `rmarkdown::render()` guarantees zero manual calculation errors when new data arrives.
